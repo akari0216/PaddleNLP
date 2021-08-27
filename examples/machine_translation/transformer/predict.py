@@ -24,6 +24,17 @@ def parse_args():
         action="store_true",
         help="Whether to print logs on each cards and use benchmark vocab. Normally, not necessary to set --benchmark. "
     )
+    parser.add_argument(
+        "--test_file",
+        nargs='+',
+        default=None,
+        type=str,
+        help="The file for testing. Normally, it shouldn't be set and in this case, the default WMT14 dataset will be used to process testing."
+    )
+    parser.add_argument(
+        "--without_ft",
+        action="store_true",
+        help="Whether to use Faster Transformer to do predict. ")
     args = parser.parse_args()
     return args
 
@@ -62,7 +73,8 @@ def do_predict(args):
         src_vocab_size=args.src_vocab_size,
         trg_vocab_size=args.trg_vocab_size,
         max_length=args.max_length + 1,
-        n_layer=args.n_layer,
+        num_encoder_layers=args.n_layer,
+        num_decoder_layers=args.n_layer,
         n_head=args.n_head,
         d_model=args.d_model,
         d_inner_hid=args.d_inner_hid,
@@ -71,7 +83,8 @@ def do_predict(args):
         bos_id=args.bos_idx,
         eos_id=args.eos_idx,
         beam_size=args.beam_size,
-        max_out_len=args.max_out_len)
+        max_out_len=args.max_out_len,
+        use_ft=not args.without_ft)
 
     # Load the trained model
     assert args.init_from_params, (
@@ -83,7 +96,7 @@ def do_predict(args):
     # Set evaluate mode
     transformer.eval()
 
-    f = open(args.output_file, "w")
+    f = open(args.output_file, "w", encoding="utf-8")
     with paddle.no_grad():
         for (src_word, ) in test_loader:
             # The shape of finished_seq is `[seq_len, batch_size, beam_size]`
@@ -105,7 +118,9 @@ if __name__ == "__main__":
     yaml_file = ARGS.config
     with open(yaml_file, 'rt') as f:
         args = AttrDict(yaml.safe_load(f))
-        pprint(args)
     args.benchmark = ARGS.benchmark
+    args.test_file = ARGS.test_file
+    args.without_ft = ARGS.without_ft
+    pprint(args)
 
     do_predict(args)

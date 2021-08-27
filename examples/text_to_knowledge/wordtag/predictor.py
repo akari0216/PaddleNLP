@@ -96,9 +96,9 @@ URLS = {
     "TermTree.V1.0":
     "https://kg-concept.bj.bcebos.com/TermTree/TermTree.V1.0.tar.gz",
     "termtree_type.csv":
-    "https://paddlenlp.bj.bcebos.com/paddlenlp/resource/termtree_type.csv",
-    "termtree_tags.txt":
-    "https://paddlenlp.bj.bcebos.com/paddlenlp/resource/termtree_tags.txt",
+    "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_ctm/termtree_type.csv",
+    "termtree_tags_pos.txt":
+    "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_ctm/termtree_tags_pos.txt",
 }
 
 
@@ -118,7 +118,7 @@ class WordtagPredictor(object):
         term_schema_path = self._download_termtree("termtree_type.csv")
         term_data_path = self._download_termtree("TermTree.V1.0")
         if tag_path is None:
-            tag_path = self._download_termtree("termtree_tags.txt")
+            tag_path = self._download_termtree("termtree_tags_pos.txt")
         self._tags_to_index, self._index_to_tags = self._load_labels(tag_path)
 
         self._model = ErnieCtmWordtagModel.from_pretrained(
@@ -173,7 +173,7 @@ class WordtagPredictor(object):
 
     @staticmethod
     def _load_schema(schema_path):
-        schema_df = pd.read_csv(schema_path, sep="\t", encoding="gb2312")
+        schema_df = pd.read_csv(schema_path, sep="\t", encoding="utf8")
         schema = {}
         for idx in range(schema_df.shape[0]):
             if not isinstance(schema_df["type-1"][idx], float):
@@ -217,7 +217,6 @@ class WordtagPredictor(object):
 
     def _split_long_text2short_text_list(self, input_texts, max_text_len):
         short_input_texts = []
-        short_input_texts_lens = []
         for text in input_texts:
             if len(text) <= max_text_len:
                 short_input_texts.append(text)
@@ -235,13 +234,35 @@ class WordtagPredictor(object):
                     ]
                     short_input_texts.extend(temp_text_list)
                 else:
-                    count = 0
-                    for temp_text in temp_text_list:
-                        if len(temp_text) + count < lens:
-                            temp_text = text[:len(temp_text) + count + 1]
-                        count += len(temp_text)
+                    list_len = len(temp_text_list)
+                    start = 0
+                    end = 0
+                    for i in range(0, list_len):
+                        if len(temp_text_list[i]) + 1 >= max_text_len:
+                            if start != end:
+                                short_input_texts.extend(
+                                    self._split_long_text_input(
+                                        [text[start:end]], max_text_len))
+                            short_input_texts.extend(
+                                self._split_long_text_input([
+                                    text[end:end + len(temp_text_list[i]) + 1]
+                                ], max_text_len))
+                            start = end + len(temp_text_list[i]) + 1
+                            end = start
+                        else:
+                            if start + len(temp_text_list[
+                                    i]) + 1 > max_text_len:
+                                short_input_texts.extend(
+                                    self._split_long_text_input(
+                                        [text[start:end]], max_text_len))
+                                start = end
+                                end = end + len(temp_text_list[i]) + 1
+                            else:
+                                end = len(temp_text_list[i]) + 1
+                    if start != end:
                         short_input_texts.extend(
-                            self._split_long_text2short_text_list([temp_text]))
+                            self._split_long_text_input([text[start:end]],
+                                                        max_text_len))
         return short_input_texts
 
     def _convert_short_text2long_text_result(self, input_texts, results):
@@ -268,16 +289,14 @@ class WordtagPredictor(object):
                     raise Exception("The len of text must same as raw text.")
         return concat_results
 
-    def _pre_process_text(self, input_texts, max_seq_len=128, batch_size=1):
+    def _pre_process_text(self, input_texts, max_seq_len=512, batch_size=1):
         infer_data = []
         max_predict_len = max_seq_len - self.summary_num - 1
         short_input_texts = self._split_long_text2short_text_list(
             input_texts, max_predict_len)
         for text in short_input_texts:
-            tokens = ["[CLS%i]" % i
-                      for i in range(1, self.summary_num)] + list(text)
             tokenized_input = self._tokenizer(
-                tokens,
+                list(text),
                 return_length=True,
                 is_split_into_words=True,
                 max_seq_len=max_seq_len)
@@ -343,7 +362,7 @@ class WordtagPredictor(object):
     @paddle.no_grad()
     def run(self,
             input_texts,
-            max_seq_len=128,
+            max_seq_len=512,
             batch_size=1,
             return_hidden_states=None):
         """Predict a input text by wordtag.

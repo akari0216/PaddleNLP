@@ -162,7 +162,6 @@ class XLNetTokenizer(PretrainedTokenizer):
             self.convert_ids_to_tokens(i): i
             for i in range(self.vocab_size)
         }
-        vocab.update(self.added_tokens_encoder)
         return vocab
 
     def __getstate__(self):
@@ -288,10 +287,6 @@ class XLNetTokenizer(PretrainedTokenizer):
     def num_special_tokens_to_add(self, pair=False):
         """
         Returns the number of added tokens when encoding a sequence with special tokens.
-
-        Note:
-            This encodes inputs and checks the number of added tokens, and is therefore not efficient.
-            Do not put this inside your training loop.
 
         Args:
             pair (bool, optional):

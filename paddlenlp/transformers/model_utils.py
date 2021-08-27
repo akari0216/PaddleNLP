@@ -23,7 +23,7 @@ import inspect
 import paddle
 from paddle.nn import Layer
 # TODO(fangzeyang) Temporary fix and replace by paddle framework downloader later
-from paddlenlp.utils.downloader import get_path_from_url
+from paddlenlp.utils.downloader import get_path_from_url, COMMUNITY_MODEL_PREFIX
 from paddlenlp.utils.env import MODEL_HOME
 from paddlenlp.utils.log import logger
 
@@ -38,17 +38,17 @@ __all__ = [
 
 def register_base_model(cls):
     """
-    A decorator for `PretrainedModel` class. It adds a `base_model_class` attribute
-    for the parent class of decorated class, and the attribute value is the decorated
-    class. It indicates the base model class in derived classes of the same architecture.
+    A decorator for `PretrainedModel` class. It first retrieves the parent class
+    of the class being decorated, then sets the `base_model_class` attribute
+    of that parent class to be the class being decorated. In summary, the decorator registers
+    the decorated class as the base model class in all derived classes under the same architecture.
 
     Args:
-        cls (`type`): The `PretrainedModel` class to be decorated.
-    
+        cls (PretrainedModel): The class (inherited from PretrainedModel) to be decorated .
+
     Returns:
-        `type`: The decorated `PretrainedModel` class. It's same as the input
-            argument `cls`.
-    
+        PretrainedModel: The input class `cls` after decorating.
+
     Example:
         .. code-block::
 
@@ -69,28 +69,28 @@ def register_base_model(cls):
 class PretrainedModel(Layer, GenerationMixin):
     """
     The base class for all pretrained models. It mainly provides common methods
-    for pretrained models loading (construction and loading) and saving. Loading
+    for loading (construction and loading) and saving pretrained models. Loading
     and saving also rely on the following class attributes which should be overridden
     by derived classes accordingly:
 
-    - `model_config_file` (`str`): Represents the file name of model configuration
+    - **model_config_file** (str): Represents the file name of model configuration
       for configuration saving and loading in local file system. The value is
       `model_config.json`.
-    - `resource_files_names` (`dict`): Represents resources to specific file
-      names mapping for resource saving and loading in local file system. Currently,
-      resources only include the model state, thus the dict only includes
-      `'model_state'` as key with corresponding value `'model_state.pdparams'`
-      for model weights saving and loading.
-    - `pretrained_init_configuration` (`dict`): Provides the model configurations
-      of built-in pretrained models (constract to models in local file system).
+    - **resource_files_names** (dict): Name of local file where the model configuration
+      can be saved and loaded locally. Currently, resources only include the model state,
+      thus the dict only includes `'model_state'` as key with corresponding
+      value `'model_state.pdparams'` for model weights saving and loading.
+    - **pretrained_init_configuration** (dict): Provides the model configurations
+      of built-in pretrained models (contrasts to models in local file system).
       It has pretrained model names as keys (such as `bert-base-uncased`), and
       the values are dict preserving corresponding configuration for model initialization.
-    - `pretrained_resource_files_map` (`dict`): Provides resource URLs of built-in
-      pretrained models (constract to models in local file system). It has the
-      same keys as `resource_files_names` (that is `'model_state'`), and the
-      values are also `dict` mapping specific pretrained model name (such as
-      `bert-base-uncased`) to URL of pretrained model weights.
-    - `base_model_prefix` (`str`): Represents the attribute associated to the
+    - **pretrained_resource_files_map** (dict): Provides resource URLs of built-in
+      pretrained models (contrasts to models in local file system).
+      It has the same key as resource_files_names (that is "model_state"),
+      and the corresponding value is a dict with specific model name to model weights URL mapping
+      (such as "bert-base-uncased" ->
+      "https://paddlenlp.bj.bcebos.com/models/transformers/bert-base-uncased.pdparams").
+    - **base_model_prefix** (str): Represents the attribute associated to the
       base model in derived classes of the same architecture adding layers on
       top of the base model. Note: A base model class is pretrained model class
       decorated by `register_base_model`, such as `BertModel`; A derived model
@@ -105,7 +105,7 @@ class PretrainedModel(Layer, GenerationMixin):
     """
     model_config_file = "model_config.json"
     pretrained_init_configuration = {}
-    # TODO: more flexible resource handle, namedtuple with fileds as:
+    # TODO: more flexible resource handle, namedtuple with fields as:
     # resource_name, saved_file, handle_name_for_load(None for used as __init__
     # arguments), handle_name_for_save
     resource_files_names = {"model_state": "model_state.pdparams"}
@@ -115,7 +115,7 @@ class PretrainedModel(Layer, GenerationMixin):
     def _wrap_init(self, original_init, *args, **kwargs):
         """
         It would be hooked after `__init__` to add a dict including arguments of
-        `__init__` as a attribute named `config` of the prtrained model instance.
+        `__init__` as a attribute named `config` of the pretrained model instance.
         """
         init_dict = fn_args_to_dict(original_init, *((self, ) + args), **kwargs)
         self.config = init_dict
@@ -135,6 +135,7 @@ class PretrainedModel(Layer, GenerationMixin):
         list: Contains all supported built-in pretrained model names of the
             current PretrainedModel class.
         """
+        # Todo: return all model name
         return list(self.pretrained_init_configuration.keys())
 
     def get_input_embeddings(self):
@@ -150,35 +151,48 @@ class PretrainedModel(Layer, GenerationMixin):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *args, **kwargs):
         """
-        Create an instance of `PretrainedModel` and load pretrained model weights
-        for it according to a specific model name (such as `bert-base-uncased`)
+        Creates an instance of `PretrainedModel`. Model weights are loaded
+        by specifying name of a built-in pretrained model, or a community contributed model,
         or a local file directory path.
 
         Args:
-            pretrained_model_name_or_path (`str`): A name of pretrained model
-                for built-in pretrained models loading, such as `bert-base-uncased`.
-                Or a local file directory path for local trained models loading.
-            *args (tuple): position arguments for model `__init__`. If provided,
+            pretrained_model_name_or_path (str): Name of pretrained model or dir path
+                to load from. The string can be:
+
+                - Name of a built-in pretrained model
+                - Name of a community-contributed pretrained model.
+                - Local directory path which contains model weights file("model_state.pdparams")
+                  and model config file ("model_config.json").
+            *args (tuple): Position arguments for model `__init__`. If provided,
                 use these as position argument values for model initialization.
-            **kwargs (dict): keyword arguments for model `__init__`. If provided,
+            **kwargs (dict): Keyword arguments for model `__init__`. If provided,
                 use these to update pre-defined keyword argument values for model
                 initialization. If the keyword is in `__init__` argument names of
                 base model, update argument values of the base model; else update
                 argument values of derived model.
 
         Returns:
-            `PretrainedModel`: An instance of `PretrainedModel`.
-        
+            PretrainedModel: An instance of `PretrainedModel`.
+
         Example:
             .. code-block::
 
                 from paddlenlp.transformers import BertForSequenceClassification
 
+                # Name of built-in pretrained model
                 model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+
+                # Name of community-contributed pretrained model
+                model = BertForSequenceClassification.from_pretrained('yingyibiao/bert-base-uncased-sst-2-finetuned')
+
+                # Load from local directory path
+                model = BertForSequenceClassification.from_pretrained('./my_bert/')
         """
         pretrained_models = list(cls.pretrained_init_configuration.keys())
         resource_files = {}
         init_configuration = {}
+
+        # From built-in pretrained models
         if pretrained_model_name_or_path in pretrained_models:
             for file_id, map_list in cls.pretrained_resource_files_map.items():
                 resource_files[file_id] = map_list[
@@ -186,38 +200,50 @@ class PretrainedModel(Layer, GenerationMixin):
             init_configuration = copy.deepcopy(
                 cls.pretrained_init_configuration[
                     pretrained_model_name_or_path])
+        # From local dir path
+        elif os.path.isdir(pretrained_model_name_or_path):
+            for file_id, file_name in cls.resource_files_names.items():
+                full_file_name = os.path.join(pretrained_model_name_or_path,
+                                              file_name)
+                resource_files[file_id] = full_file_name
+            resource_files["model_config_file"] = os.path.join(
+                pretrained_model_name_or_path, cls.model_config_file)
         else:
-            if os.path.isdir(pretrained_model_name_or_path):
-                for file_id, file_name in cls.resource_files_names.items():
-                    full_file_name = os.path.join(pretrained_model_name_or_path,
-                                                  file_name)
-                    resource_files[file_id] = full_file_name
-                resource_files["model_config_file"] = os.path.join(
-                    pretrained_model_name_or_path, cls.model_config_file)
-            else:
-                raise ValueError(
-                    "Calling {}.from_pretrained() with a model identifier or the "
-                    "path to a directory instead. The supported model "
-                    "identifiers are as follows: {}, but got: {}".format(
-                        cls.__name__,
-                        cls.pretrained_init_configuration.keys(
-                        ), pretrained_model_name_or_path))
+            # Assuming from community-contributed pretrained models
+            for file_id, file_name in cls.resource_files_names.items():
+                full_file_name = os.path.join(COMMUNITY_MODEL_PREFIX,
+                                              pretrained_model_name_or_path,
+                                              file_name)
+                resource_files[file_id] = full_file_name
+            resource_files["model_config_file"] = os.path.join(
+                COMMUNITY_MODEL_PREFIX, pretrained_model_name_or_path,
+                cls.model_config_file)
 
         default_root = os.path.join(MODEL_HOME, pretrained_model_name_or_path)
-
         resolved_resource_files = {}
         for file_id, file_path in resource_files.items():
-            path = os.path.join(default_root, file_path.split('/')[-1])
             if file_path is None or os.path.isfile(file_path):
                 resolved_resource_files[file_id] = file_path
-            elif os.path.exists(path):
+                continue
+            path = os.path.join(default_root, file_path.split('/')[-1])
+            if os.path.exists(path):
                 logger.info("Already cached %s" % path)
                 resolved_resource_files[file_id] = path
             else:
                 logger.info("Downloading %s and saved to %s" %
                             (file_path, default_root))
-                resolved_resource_files[file_id] = get_path_from_url(
-                    file_path, default_root)
+                try:
+                    resolved_resource_files[file_id] = get_path_from_url(
+                        file_path, default_root)
+                except RuntimeError as err:
+                    logger.error(err)
+                    raise RuntimeError(
+                        f"Can't load weights for '{pretrained_model_name_or_path}'.\n"
+                        f"Please make sure that '{pretrained_model_name_or_path}' is:\n"
+                        "- a correct model-identifier of built-in pretrained models,\n"
+                        "- or a correct model-identifier of community-contributed pretrained models,\n"
+                        "- or the correct path to a directory containing relevant modeling files(model_weights and model_config).\n"
+                    )
 
         # Prepare model initialization kwargs
         # Did we saved some inputs and kwargs to reload ?
@@ -291,7 +317,7 @@ class PretrainedModel(Layer, GenerationMixin):
             model = cls(*derived_args, **derived_kwargs)
 
         # Maybe need more ways to load resources.
-        weight_path = list(resolved_resource_files.values())[0]
+        weight_path = resolved_resource_files["model_state"]
         assert weight_path.endswith(
             ".pdparams"), "suffix of weight must be .pdparams"
         state_dict = paddle.load(weight_path)
@@ -327,34 +353,17 @@ class PretrainedModel(Layer, GenerationMixin):
         if len(unexpected_keys) > 0:
             logger.info("Weights from pretrained model not used in {}: {}".
                         format(model.__class__.__name__, unexpected_keys))
-        model_to_load.set_state_dict(state_to_load)
         if paddle.in_dynamic_mode():
+            model_to_load.set_state_dict(state_to_load)
             return model
         return model, state_to_load
 
     def save_model_config(self, save_dir):
         """
-        Save model configuration and related resources (model state) to files
-        under `save_directory`. The model configuration would be saved into
-        `model_config_file` indicating file (thus `model_config.json`), and model
-        state would be saved into `resource_files_names` indicating file (thus
-        `model_state.pdparams`).
-        
-        The `save_directory` can be used in `from_pretrained` as argument value
-        of `pretrained_model_name_or_path` to re-load the trained model.
+        Saves model configuration to a file named "model_config.json" under `save_dir`.
 
         Args:
-            save_directory (str): Directory to save files into.
-
-        Example:
-            .. code-block::
-
-                from paddlenlp.transformers import BertForSequenceClassification
-
-                model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
-                model.save_pretrained('trained_model')
-                # reload from save_directory
-                model = BertForSequenceClassification.from_pretrained('trained_model')
+            save_dir (str): Directory to save model_config file into.
         """
         # Save model config
         model_config_file = os.path.join(save_dir, self.model_config_file)
@@ -375,16 +384,39 @@ class PretrainedModel(Layer, GenerationMixin):
 
     def save_pretrained(self, save_dir):
         """
-        Save model configuration and related resources (model state) to files
-        under `save_dir`.
+        Saves model configuration and related resources (model state) as files
+        under `save_dir`. The model configuration would be saved into a file named
+        "model_config.json", and model state would be saved into a file
+        named "model_state.pdparams".
+
+        The `save_dir` can be used in `from_pretrained` as argument value
+        of `pretrained_model_name_or_path` to re-load the trained model.
+
         Args:
             save_dir (str): Directory to save files into.
+
+        Example:
+            .. code-block::
+
+                from paddlenlp.transformers import BertForSequenceClassification
+
+                model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+                model.save_pretrained('./trained_model/')
+                # reload from save_directory
+                model = BertForSequenceClassification.from_pretrained('./trained_model/')
         """
-        assert os.path.isdir(
-            save_dir), "save_dir ({}) is not available.".format(save_dir)
-        # Save model config 
+        assert not os.path.isfile(
+            save_dir
+        ), "Saving directory ({}) should be a directory, not a file".format(
+            save_dir)
+        os.makedirs(save_dir, exist_ok=True)
+        # Save model config
         self.save_model_config(save_dir)
         # Save model
-        file_name = os.path.join(save_dir,
-                                 list(self.resource_files_names.values())[0])
-        paddle.save(self.state_dict(), file_name)
+        if paddle.in_dynamic_mode():
+            file_name = os.path.join(
+                save_dir, list(self.resource_files_names.values())[0])
+            paddle.save(self.state_dict(), file_name)
+        else:
+            logger.warning(
+                "Save pretrained model only supported dygraph mode for now!")

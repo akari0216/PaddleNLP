@@ -29,7 +29,7 @@ def parse_args():
         help="Path of the config file. ")
     parser.add_argument(
         "--decoding_lib",
-        default="../../../../paddlenlp/ops/src/build/lib/libdecoding_op.so",
+        default="../../../../paddlenlp/ops/build/lib/libdecoding_op.so",
         type=str,
         help="Path of libdecoding_op.so. ")
     parser.add_argument(
@@ -75,7 +75,8 @@ def do_predict(args):
             src_vocab_size=args.src_vocab_size,
             trg_vocab_size=args.trg_vocab_size,
             max_length=args.max_length + 1,
-            n_layer=args.n_layer,
+            num_encoder_layers=args.n_layer,
+            num_decoder_layers=args.n_layer,
             n_head=args.n_head,
             d_model=args.d_model,
             d_inner_hid=args.d_inner_hid,

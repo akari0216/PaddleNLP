@@ -101,13 +101,10 @@ class CrossEntropyLossForSQuAD(paddle.nn.Layer):
         start_position, end_position = label
         start_position = paddle.unsqueeze(start_position, axis=-1)
         end_position = paddle.unsqueeze(end_position, axis=-1)
-        start_loss = paddle.nn.functional.softmax_with_cross_entropy(
-            logits=start_logits, label=start_position, soft_label=False)
-        start_loss = paddle.mean(start_loss)
-        end_loss = paddle.nn.functional.softmax_with_cross_entropy(
-            logits=end_logits, label=end_position, soft_label=False)
-        end_loss = paddle.mean(end_loss)
-
+        start_loss = paddle.nn.functional.cross_entropy(
+            input=start_logits, label=start_position)
+        end_loss = paddle.nn.functional.cross_entropy(
+            input=end_logits, label=end_position)
         loss = (start_loss + end_loss) / 2
         return loss
 
@@ -123,6 +120,11 @@ def run(args):
     model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     tokenizer = tokenizer_class.from_pretrained(args.model_name_or_path)
     set_seed(args)
+
+    train_ds = load_dataset(
+        task_name, splits="train", data_files=args.train_file)
+    dev_ds = load_dataset(task_name, splits="dev", data_files=args.predict_file)
+
     if rank == 0:
         if os.path.exists(args.model_name_or_path):
             print("init checkpoint from %s" % args.model_name_or_path)
@@ -200,10 +202,6 @@ def run(args):
         return tokenized_examples
 
     if args.do_train:
-        if args.train_file:
-            train_ds = load_dataset(task_name, data_files=args.train_file)
-        else:
-            train_ds = load_dataset(task_name, splits='train')
         train_ds.map(prepare_train_features, batched=True)
         train_batch_sampler = paddle.io.DistributedBatchSampler(
             train_ds, batch_size=args.batch_size, shuffle=True)
@@ -312,12 +310,6 @@ def run(args):
         return tokenized_examples
 
     if args.do_predict and rank == 0:
-
-        if args.predict_file:
-            dev_ds = load_dataset(task_name, data_files=args.predict_file)
-        else:
-            dev_ds = load_dataset(task_name, splits='dev')
-
         dev_ds.map(prepare_validation_features, batched=True)
         dev_batch_sampler = paddle.io.BatchSampler(
             dev_ds, batch_size=args.batch_size, shuffle=False)
