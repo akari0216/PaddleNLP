@@ -76,8 +76,7 @@ class Clue(DatasetBuilder):
 
     BUILDER_CONFIGS = {
         'afqmc': {
-            'url':
-            "https://storage.googleapis.com/cluebenchmark/tasks/afqmc_public.zip",
+            'url': "https://bj.bcebos.com/paddlenlp/datasets/afqmc_public.zip",
             'md5': '3377b559bb4e61d03a35282550902ca0',
             'splits': {
                 'train': [
@@ -96,8 +95,7 @@ class Clue(DatasetBuilder):
             'labels': ["0", "1"]
         },
         'tnews': {
-            'url':
-            "https://storage.googleapis.com/cluebenchmark/tasks/tnews_public.zip",
+            'url': "https://bj.bcebos.com/paddlenlp/datasets/tnews_public.zip",
             'md5': '38186ed0a751bc33e3ae0c1b59319777',
             'splits': {
                 'train': [
@@ -128,7 +126,7 @@ class Clue(DatasetBuilder):
         },
         'iflytek': {
             'url':
-            'https://storage.googleapis.com/cluebenchmark/tasks/iflytek_public.zip',
+            'https://bj.bcebos.com/paddlenlp/datasets/iflytek_public.zip',
             'md5': "19e4b19947db126f69aae18db0da2b87",
             'splits': {
                 'train': [
@@ -151,8 +149,7 @@ class Clue(DatasetBuilder):
             'labels': [str(i) for i in range(119)]
         },
         'ocnli': {
-            'url':
-            'https://storage.googleapis.com/cluebenchmark/tasks/ocnli_public.zip',
+            'url': 'https://bj.bcebos.com/paddlenlp/datasets/ocnli_public.zip',
             'md5': 'acb426f6f3345076c6ce79239e7bc307',
             'splits': {
                 'train': [
@@ -171,8 +168,7 @@ class Clue(DatasetBuilder):
             'labels': ["entailment", "contradiction", "neutral"]
         },
         'cmnli': {
-            'url':
-            'https://storage.googleapis.com/cluebenchmark/tasks/cmnli_public.zip',
+            'url': 'https://bj.bcebos.com/paddlenlp/datasets/cmnli_public.zip',
             'md5': 'e0e8caefd9b3491220c18b466233f2ff',
             'splits': {
                 'train': [
@@ -192,8 +188,8 @@ class Clue(DatasetBuilder):
         },
         'cluewsc2020': {
             'url':
-            'https://storage.googleapis.com/cluebenchmark/tasks/cluewsc2020_public.zip',
-            'md5': '17abe1be3f7dd3bad5f114ba4c40ee9b',
+            'https://bj.bcebos.com/paddlenlp/datasets/cluewsc2020_public.zip',
+            'md5': '2e387e20e93eeab0ffaded5b0d2dfd3d',
             'splits': {
                 'train': [
                     os.path.join('cluewsc2020_public', 'train.json'),
@@ -205,14 +201,17 @@ class Clue(DatasetBuilder):
                 ],
                 'test': [
                     os.path.join('cluewsc2020_public', 'test.json'),
+                    '27614454cc26be6fcab5bbd9a45967ff',
+                ],
+                'test1.0': [
+                    os.path.join('cluewsc2020_public', 'test1.0.json'),
                     '0e9e8ffd8ee90ddf1f58d6dc2e02de7b',
                 ]
             },
             'labels': ["true", "false"]
         },
         'csl': {
-            'url':
-            'https://storage.googleapis.com/cluebenchmark/tasks/csl_public.zip',
+            'url': 'https://bj.bcebos.com/paddlenlp/datasets/csl_public.zip',
             'md5': '394a2ccbf6ddd7e331be4d5d7798f0f6',
             'splits': {
                 'train': [

@@ -34,7 +34,7 @@ class BSTC(DatasetBuilder):
     BUILDER_CONFIGS = {
         'transcription_translation': {
             'url':
-            "https://paddlenlp.bj.bcebos.com/datasets/bstc_transcription_translation.tar.gz",
+            "https://bj.bcebos.com/paddlenlp/datasets/bstc_transcription_translation.tar.gz",
             'md5': '236800188e397c42a3251982aeee48ee',
             'splits': {
                 'train':
@@ -48,7 +48,7 @@ class BSTC(DatasetBuilder):
             }
         },
         'asr': {
-            'url': "https://paddlenlp.bj.bcebos.com/datasets/bstc_asr.tar.gz",
+            'url': "https://bj.bcebos.com/paddlenlp/datasets/bstc_asr.tar.gz",
             'md5': '3a0cc5039f45e62e29485e27d3a5f5a7',
             'splits': {
                 'train': [os.path.join('bstc_asr', 'train', 'asr_sentences')],
@@ -108,8 +108,9 @@ class BSTC(DatasetBuilder):
                 dir_list.sort(key=lambda x: int(x))
                 for dir_name in dir_list:
                     filenames = [
-                        f for f in
-                        os.listdir(os.path.join(source_full_dir, dir_name))
+                        f
+                        for f in os.listdir(
+                            os.path.join(source_full_dir, dir_name))
                         if not f.startswith('.')
                     ]
                     filenames.sort(key=lambda x: int(x[x.find('-') + 1:-5]))

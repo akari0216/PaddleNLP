@@ -36,19 +36,17 @@ __all__ = ['UnifiedTransformerTokenizer']
 
 class UnifiedTransformerTokenizer(PretrainedTokenizer):
     """
-    Constructs an UnifiedTransformer tokenizer based on 
-    `SentencePiece <https://github.com/google/sentencepiece>`__.
+    Constructs an UnifiedTransformer tokenizer based on `SentencePiece <https://github.com/google/sentencepiece>`__.
 
-    This tokenizer inherits from 
-    :class:`~paddlenlp.transformers.tokenizer_utils.PretrainedTokenizer` which 
-    contains most of the main methods. For more information regarding those 
-    methods, please refer to this superclass.
+    This tokenizer inherits from :class:`~paddlenlp.transformers.tokenizer_utils.PretrainedTokenizer`
+    which contains most of the main methods. For more information regarding those methods,
+    please refer to this superclass.
 
     Args:
         vocab_file (str):
             The path of file to construct vocabulary.
         sentencepiece_model_file (str):
-            The sentencepiece model file required to instantiate a 
+            The sentencepiece model file (ends with '.spm') required to instantiate a
             `SentencePiece <https://github.com/google/sentencepiece>`__.
         do_lower_case (bool, optional):
             Whether or not to lowercase the input when tokenizing. Defaults to 
@@ -80,19 +78,23 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
     pretrained_resource_files_map = {
         "vocab_file": {
             "unified_transformer-12L-cn":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/unified_transformer/unified_transformer-12L-cn-vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/unified_transformer-12L-cn-vocab.txt",
             "unified_transformer-12L-cn-luge":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/unified_transformer/unified_transformer-12L-cn-vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/unified_transformer-12L-cn-vocab.txt",
             "plato-mini":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/unified_transformer/plato-mini-vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/plato-mini-vocab.txt",
+            "plato-xl":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/plato-xl-vocab.txt",
         },
         "sentencepiece_model_file": {
             "unified_transformer-12L-cn":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/unified_transformer/unified_transformer-12L-cn-spm.model",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/unified_transformer-12L-cn-spm.model",
             "unified_transformer-12L-cn-luge":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/unified_transformer/unified_transformer-12L-cn-spm.model",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/unified_transformer-12L-cn-spm.model",
             "plato-mini":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/unified_transformer/plato-mini-spm.model",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/plato-mini-spm.model",
+            "plato-xl":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/unified_transformer/plato-xl-spm.model",
         },
     }
     pretrained_init_configuration = {
@@ -103,6 +105,9 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
             "do_lower_case": False
         },
         "plato-mini": {
+            "do_lower_case": False
+        },
+        "plato-xl": {
             "do_lower_case": False
         },
     }
@@ -122,7 +127,8 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                  cls_token="[CLS]",
                  sep_token="[SEP]",
                  mask_token="[MASK]",
-                 special_tokens_file=""):
+                 special_tokens_file="",
+                 **kwargs):
         mod = try_import('sentencepiece')
         self.spm_model = mod.SentencePieceProcessor()
 
@@ -244,32 +250,6 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
             tokens.extend(part_tokens)
         return tokens
 
-    def tokenize(self, text, is_split_into_words=True):
-        """
-        End-to-end tokenization for UnifiedTransformer models.
-
-        Args:
-            text (str): 
-                The text to be tokenized.
-            is_split_into_words (bool, optinal): 
-                Whether or not the input `text` has been pretokenized. If False, 
-                the input `text` will be pretokenized by `jieba` firstly. 
-                Defaults to True.
-        
-        Returns:
-            list[str]: A list of string representing converted tokens.
-
-        Example:
-            .. code-block::
-
-                from paddlenlp.transformers import UnifiedTransformerTokenizer
-
-                tokenizer = UnifiedTransformerTokenizer.from_pretrained('plato-mini')
-                print(tokenizer.tokenize('我爱祖国', is_split_into_words=False))
-                # ['▁我', '▁爱', '祖', '国']
-        """
-        return self._tokenize(text, is_split_into_words=is_split_into_words)
-
     def merge_subword(self, tokens):
         # Merge subword.
         ret = []
@@ -307,10 +287,10 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                 from paddlenlp.transformers import UnifiedTransformerTokenizer
 
                 tokenizer = UnifiedTransformerTokenizer.from_pretrained('plato-mini')
-                print(tokenizer.convert_tokens_to_string(['▁我', '▁爱', '祖', '国']))
-                # 我 爱祖国
-                print(tokenizer.convert_tokens_to_string(['▁我', '▁爱', '祖', '国'], keep_space=False))
-                # 我爱祖国
+                print(tokenizer.convert_tokens_to_string(['▁欢迎', '▁使用', '▁百度', '▁飞', '桨', '▁!']))
+                # 欢迎 使用 百度 飞桨 !
+                print(tokenizer.convert_tokens_to_string(['▁欢迎', '▁使用', '▁百度', '▁飞', '桨', '▁!'], keep_space=False))
+                # 欢迎使用百度飞桨!
         """
         tokens = self.merge_subword(tokens)
         if keep_space:
@@ -342,7 +322,7 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                 from paddlenlp.transformers import UnifiedTransformerTokenizer
 
                 tokenizer = UnifiedTransformerTokenizer.from_pretrained('plato-mini')
-                tokens = tokenizer.tokenize('我爱祖国', is_split_into_words=False)
+                tokens = tokenizer.tokenize('欢迎使用百度飞桨！', is_split_into_words=False)
                 ids = tokenizer.convert_tokens_to_ids(tokens)
                 print(ids)
                 # [6, 121, 26907, 25475]
@@ -465,12 +445,14 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                         max_knowledge_len=128,
                         return_position_ids=True,
                         return_token_type_ids=True,
+                        return_role_ids=False,
                         return_attention_mask=True,
                         return_length=False,
                         add_start_token_as_response=False,
                         pad_to_max_seq_len=False,
                         return_tensors=False,
-                        is_split_into_words=True):
+                        is_split_into_words=True,
+                        position_style="continuous"):
         """
         Main method to encode the single-turn or multi-turn dialogue conversation. 
         It will return a dictionary containing the encoded sequence and other 
@@ -505,6 +487,8 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                 position_ids. Defaults to True.
             return_token_type_ids (bool, optional): Whether to return the 
                 token_type_ids. Defaults to True.
+            return_role_ids (bool, optional): Whether to return the role_ids.
+                Defaults to False.
             return_attention_mask (bool, optional): Whether to return the 
                 attention_mask. Defaults to True.
             return_length (bool, optional): Whether to return the length of the
@@ -518,9 +502,12 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                 returned sequences will be padded on the left. Defaults to False.
             return_tensors (bool, optional): Whether to convert the returned 
                 sequences to Tensor. Defaults to False.
-            is_split_into_words(bool, optinal): Whether or not the input text 
+            is_split_into_words (bool, optional): Whether or not the input text 
                 (`history`, `response` and `knowledge`) has been pretokenized. 
                 Defaults to True.
+            position_style (str, optional): Specify the involved positional style
+                which must be one of [relative, continuous]. Defaults to continuous
+                which means start from 0 to maximum length of history.
 
         Returns: 
             dict: A dictionary containing the encoded sequence and other 
@@ -532,6 +519,9 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                 A list of indices of input tokens to be feed to UnifiedTransformer 
                 model. If `return_tensors` is True, it is a Tensor with shape 
                 [1, sequence_length] and data type 'int64'.
+            - role_ids (list[int]|Tensor, optional):
+                A list of indices of role indices. If `return_role_ids` is True,
+                it is a Tensor with shape [1, sequence_length] and data type 'int64'.
             - token_type_ids (list[int]|Tensor, optional):
                 A list of segment token indices to indicate whether the token 
                 belongs to the dialogue response. If `return_tensors` is True, 
@@ -610,16 +600,33 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
                 knowledge_ids = knowledge_ids[:max_knowledge_len - 1]
             knowledge_ids += [self.sep_token_id]
 
+        if return_role_ids:
+            response_role_ids = []
+
         response_ids = []
         if response is not None:
+            if return_role_ids:
+                if "\1" in response:
+                    response, role_id = response.split("\1")
+                    role_id = int(role_id)
+                else:
+                    role_id = 0
+
             tokens = self._tokenize(response, is_split_into_words)
             response_ids = [self.cls_token_id] + self.convert_tokens_to_ids(
                 tokens)
             if len(response_ids) > max_response_len - 1:
                 response_ids = response_ids[:max_response_len - 1]
             response_ids += [self.sep_token_id]
+
+            if return_role_ids:
+                response_role_ids = [role_id] * len(response_ids)
+
         elif add_start_token_as_response:
             response_ids = [self.cls_token_id]
+
+            if return_role_ids:
+                response_role_ids = [0]
 
         if task_type is not None:
             special_token = self.TASK_TO_SPECIAL_TOKEN[task_type]
@@ -632,25 +639,64 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
         else:
             knowledge_ids = [self.cls_token_id] + knowledge_ids
 
+        if return_role_ids:
+            history_role_ids = []
+            individual_history_length = []
+            knowledge_role_ids = [0] * len(knowledge_ids)
+
         max_history_len = max_seq_len - len(knowledge_ids) - len(response_ids)
         if isinstance(history, str):
             history = [history]
         history_ids = []
         for i in range(len(history) - 1, -1, -1):
+            role_id = None
+
+            if return_role_ids and "\1" in history[i]:
+                history[i], role_id = history[i].split("\1")
+                role_id = int(role_id)
+
             tokens = self._tokenize(history[i], is_split_into_words)
             if len(history_ids) + len(tokens) + 1 > max_history_len:
                 if i == len(history) - 1:
                     tokens = tokens[1 - max_history_len:]
                     history_ids = (self.convert_tokens_to_ids(tokens) +
                                    [self.sep_token_id])
+
+                    if role_id is not None:
+                        history_role_ids = [role_id] * len(history_ids)
+                    elif return_role_ids:
+                        individual_history_length = [len(history_ids)]
                 break
+
+            if role_id is not None:
+                # 1 stands for [SEP]
+                history_role_ids = [role_id] * (len(tokens) + 1
+                                                ) + history_role_ids
+            elif return_role_ids:
+                individual_history_length = [len(tokens) + 1
+                                             ] + individual_history_length
+
             history_ids = (self.convert_tokens_to_ids(tokens) +
                            [self.sep_token_id]) + history_ids
 
+        if return_role_ids and len(history_role_ids) == 0:
+            for i in range(len(individual_history_length)):
+                history_role_ids = history_role_ids + [
+                    (len(individual_history_length) - i) % 2
+                ] * individual_history_length[i]
+
         history_ids = knowledge_ids + history_ids
+
+        if return_role_ids:
+            history_role_ids = knowledge_role_ids + history_role_ids
+
         # Build output dictionnary
         encoded_inputs = {}
         encoded_inputs["input_ids"] = history_ids + response_ids
+
+        if return_role_ids:
+            encoded_inputs["role_ids"] = history_role_ids + response_role_ids
+
         # Check lengths
         sequence_length = len(encoded_inputs["input_ids"])
         assert sequence_length <= max_seq_len
@@ -684,7 +730,17 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
             encoded_inputs["seq_len"] = sequence_length
 
         if return_position_ids:
-            encoded_inputs["position_ids"] = list(range(sequence_length))
+            if position_style == "continuous":
+                encoded_inputs["position_ids"] = list(range(sequence_length))
+            elif position_style == "relative":
+                encoded_inputs["position_ids"] = [
+                    max_response_len + (len(history_ids)) - i - 1
+                    for i in range(len(history_ids))
+                ] + list(range(len(response_ids)))
+            else:
+                raise ValueError(
+                    "Expected position_style is one of [continuous, relative], but received {}".
+                    format(position_style))
             if pad_length > 0:
                 encoded_inputs["position_ids"] = [
                     self.pad_token_id
@@ -696,19 +752,19 @@ class UnifiedTransformerTokenizer(PretrainedTokenizer):
 
         if return_attention_mask:
             attention_mask = np.ones(
-                (sequence_length, sequence_length), dtype='float32') * -1e9
+                (sequence_length, sequence_length), dtype='float32') * -1e4
             start = len(history_ids)
             end = sequence_length
             attention_mask[:end, :start] = 0.0
             # Generate the lower triangular matrix using the slice of matrix
             tmp = np.triu(
                 np.ones(
-                    [end - start, end - start], dtype='float32') * -1e9, 1)
+                    [end - start, end - start], dtype='float32') * -1e4, 1)
             attention_mask[start:end, start:end] = tmp
             encoded_inputs["attention_mask"] = attention_mask
             if pad_length > 0:
                 new_mask = np.ones(
-                    (max_seq_len, max_seq_len), dtype='float32') * -1e9
+                    (max_seq_len, max_seq_len), dtype='float32') * -1e4
                 new_mask[-sequence_length:, -sequence_length:] = attention_mask
                 encoded_inputs["attention_mask"] = new_mask
             if return_tensors:

@@ -13,11 +13,12 @@
 # limitations under the License.
 
 from .model_utils import PretrainedModel, register_base_model
-from .tokenizer_utils import PretrainedTokenizer, BPETokenizer, tokenize_chinese_chars
+from .tokenizer_utils import PretrainedTokenizer, BPETokenizer, tokenize_chinese_chars, is_chinese_char, AddedToken, normalize_chars, tokenize_special_chars
 from .attention_utils import create_bigbird_rand_mask_idx_list
 
 from .bert.modeling import *
 from .bert.tokenizer import *
+from .bert_japanese.tokenizer import *
 from .ernie.modeling import *
 from .ernie.tokenizer import *
 from .gpt.modeling import *
@@ -29,6 +30,8 @@ from .electra.tokenizer import *
 from .transformer.modeling import *
 from .ernie_gen.modeling import ErnieForGeneration
 from .optimization import *
+from .ppminilm.modeling import *
+from .ppminilm.tokenizer import *
 from .bigbird.modeling import *
 from .bigbird.tokenizer import *
 from .unified_transformer.modeling import *
@@ -55,5 +58,44 @@ from .bart.modeling import *
 from .bart.tokenizer import *
 from .roformer.modeling import *
 from .roformer.tokenizer import *
+from .blenderbot.modeling import *
+from .blenderbot.tokenizer import *
+from .blenderbot_small.modeling import *
+from .blenderbot_small.tokenizer import *
 from .unimo.modeling import *
 from .unimo.tokenizer import *
+from .squeezebert.modeling import *
+from .squeezebert.tokenizer import *
+from .convbert.modeling import *
+from .convbert.tokenizer import *
+from .mpnet.modeling import *
+from .mpnet.tokenizer import *
+from .auto.modeling import *
+from .auto.tokenizer import *
+from .ctrl.modeling import *
+from .ctrl.tokenizer import *
+from .layoutlmv2.modeling import *
+from .layoutlmv2.tokenizer import *
+from .layoutxlm.modeling import *
+from .layoutxlm.tokenizer import *
+from .layoutlm.modeling import *
+from .layoutlm.tokenizer import *
+from .t5.modeling import *
+from .t5.tokenizer import *
+from .mbart.modeling import *
+from .mbart.tokenizer import *
+from .reformer.modeling import *
+from .reformer.tokenizer import *
+from .mobilebert.modeling import *
+from .mobilebert.tokenizer import *
+from .chinesebert.modeling import *
+from .chinesebert.tokenizer import *
+from .funnel.modeling import *
+from .funnel.tokenizer import *
+from .ernie_m.modeling import *
+from .ernie_m.tokenizer import *
+from .luke.modeling import *
+from .luke.tokenizer import *
+from .megatronbert.modeling import *
+from .megatronbert.tokenizer import *
+from .semantic_search.modeling import *

@@ -17,19 +17,22 @@ import argparse
 import os
 import random
 import time
+import distutils.util
 
 import numpy as np
 import paddle
 import paddle.nn.functional as F
-
-import paddlenlp as ppnlp
 from paddlenlp.data import Stack, Tuple, Pad
 from paddlenlp.datasets import load_dataset
+from paddlenlp.transformers import AutoModelForSequenceClassification, AutoTokenizer
 from paddlenlp.transformers import LinearDecayWithWarmup
+
+from utils import convert_example
 
 # yapf: disable
 parser = argparse.ArgumentParser()
 parser.add_argument("--save_dir", default='./checkpoint', type=str, help="The output directory where the model checkpoints will be written.")
+parser.add_argument("--dataset", choices=["chnsenticorp", "xnli_cn"], default="chnsenticorp", type=str, help="Dataset for classfication tasks.")
 parser.add_argument("--max_seq_length", default=128, type=int, help="The maximum total input sequence length after tokenization. "
     "Sequences longer than this will be truncated, sequences shorter will be padded.")
 parser.add_argument("--batch_size", default=32, type=int, help="Batch size per GPU/CPU for training.")
@@ -37,9 +40,14 @@ parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initi
 parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
 parser.add_argument("--epochs", default=3, type=int, help="Total number of training epochs to perform.")
 parser.add_argument("--warmup_proportion", default=0.0, type=float, help="Linear warmup proption over the training process.")
+parser.add_argument("--valid_steps", default=100, type=int, help="The interval steps to evaluate model performance.")
+parser.add_argument("--save_steps", default=100, type=int, help="The interval steps to save checkppoints.")
+parser.add_argument("--logging_steps", default=10, type=int, help="The interval steps to logging.")
 parser.add_argument("--init_from_ckpt", type=str, default=None, help="The path of checkpoint to be loaded.")
 parser.add_argument("--seed", type=int, default=1000, help="random seed for initialization")
-parser.add_argument('--device', choices=['cpu', 'gpu', 'xpu'], default="gpu", help="Select which device to train model, defaults to gpu.")
+parser.add_argument('--device', choices=['cpu', 'gpu', 'xpu', 'npu'], default="gpu", help="Select which device to train model, defaults to gpu.")
+parser.add_argument("--use_amp", type=distutils.util.strtobool, default=False, help="Enable mixed precision training.")
+parser.add_argument("--scale_loss", type=float, default=2**15, help="The value of scale_loss for fp16.")
 args = parser.parse_args()
 # yapf: enable
 
@@ -72,47 +80,10 @@ def evaluate(model, criterion, metric, data_loader):
         losses.append(loss.numpy())
         correct = metric.compute(logits, labels)
         metric.update(correct)
-        accu = metric.accumulate()
-    print("eval loss: %.5f, accu: %.5f" % (np.mean(losses), accu))
+    accu = metric.accumulate()
+    print("eval loss: %.5f, accuracy: %.5f" % (np.mean(losses), accu))
     model.train()
     metric.reset()
-
-
-def convert_example(example, tokenizer, max_seq_length=512, is_test=False):
-    """
-    Builds model inputs from a sequence or a pair of sequence for sequence classification tasks
-    by concatenating and adding special tokens. And creates a mask from the two sequences passed 
-    to be used in a sequence-pair classification task.
-        
-    A BERT sequence has the following format:
-
-    - single sequence: ``[CLS] X [SEP]``
-
-    It returns the first portion of the mask (0's).
-
-
-    Args:
-        example(obj:`list[str]`): List of input data, containing text and label if it have label.
-        tokenizer(obj:`PretrainedTokenizer`): This tokenizer inherits from :class:`~paddlenlp.transformers.PretrainedTokenizer` 
-            which contains most of the methods. Users should refer to the superclass for more information regarding methods.
-        max_seq_len(obj:`int`): The maximum total input sequence length after tokenization. 
-            Sequences longer than this will be truncated, sequences shorter will be padded.
-        is_test(obj:`False`, defaults to `False`): Whether the example contains label or not.
-
-    Returns:
-        input_ids(obj:`list[int]`): The list of token ids.
-        token_type_ids(obj: `list[int]`): List of sequence pair mask.
-        label(obj:`numpy.array`, data type of int64, optional): The input label if not is_test.
-    """
-    encoded_inputs = tokenizer(text=example["text"], max_seq_len=max_seq_length)
-    input_ids = encoded_inputs["input_ids"]
-    token_type_ids = encoded_inputs["token_type_ids"]
-
-    if not is_test:
-        label = np.array([example["label"]], dtype="int64")
-        return input_ids, token_type_ids, label
-    else:
-        return input_ids, token_type_ids
 
 
 def create_dataloader(dataset,
@@ -146,27 +117,18 @@ def do_train():
 
     set_seed(args.seed)
 
-    train_ds, dev_ds = load_dataset("chnsenticorp", splits=["train", "dev"])
+    train_ds, dev_ds, test_ds = load_dataset(
+        args.dataset, splits=["train", "dev", "test"])
 
-    # If you wanna use bert/roberta/electra pretrained model,
-    # model = ppnlp.transformers.BertForSequenceClassification.from_pretrained('bert-base-chinese', num_class=2)
-    # model = ppnlp.transformers.RobertaForSequenceClassification.from_pretrained('roberta-wwm-ext', num_class=2)
-    # model = ppnlp.transformers.ElectraForSequenceClassification.from_pretrained('chinese-electra-small', num_classes=2)
-    model = ppnlp.transformers.ErnieForSequenceClassification.from_pretrained(
-        'ernie-tiny', num_classes=len(train_ds.label_list))
-
-    # If you wanna use bert/roberta/electra pretrained model,
-    # tokenizer = ppnlp.transformers.BertTokenizer.from_pretrained('bert-base-chinese')
-    # tokenizer = ppnlp.transformers.RobertaTokenizer.from_pretrained('roberta-wwm-ext')
-    # tokenizer = ppnlp.transformers.ElectraTokenizer.from_pretrained('chinese-electra-small', num_classes=2)
-    # ErnieTinyTokenizer is special for ernie-tiny pretained model.
-    tokenizer = ppnlp.transformers.ErnieTinyTokenizer.from_pretrained(
-        'ernie-tiny')
+    model = AutoModelForSequenceClassification.from_pretrained(
+        'ernie-1.0', num_classes=len(train_ds.label_list))
+    tokenizer = AutoTokenizer.from_pretrained('ernie-1.0')
 
     trans_func = partial(
         convert_example,
         tokenizer=tokenizer,
-        max_seq_length=args.max_seq_length)
+        max_seq_length=args.max_seq_length,
+        is_pair=args.dataset == "xnli_cn")
     batchify_fn = lambda samples, fn=Tuple(
         Pad(axis=0, pad_val=tokenizer.pad_token_id),  # input
         Pad(axis=0, pad_val=tokenizer.pad_token_type_id),  # segment
@@ -209,37 +171,52 @@ def do_train():
 
     criterion = paddle.nn.loss.CrossEntropyLoss()
     metric = paddle.metric.Accuracy()
-
+    if args.use_amp:
+        scaler = paddle.amp.GradScaler(init_loss_scaling=args.scale_loss)
     global_step = 0
     tic_train = time.time()
     for epoch in range(1, args.epochs + 1):
         for step, batch in enumerate(train_data_loader, start=1):
             input_ids, token_type_ids, labels = batch
-            logits = model(input_ids, token_type_ids)
-            loss = criterion(logits, labels)
+            with paddle.amp.auto_cast(
+                    args.use_amp,
+                    custom_white_list=["layer_norm", "softmax", "gelu"], ):
+                logits = model(input_ids, token_type_ids)
+                loss = criterion(logits, labels)
             probs = F.softmax(logits, axis=1)
             correct = metric.compute(probs, labels)
             metric.update(correct)
             acc = metric.accumulate()
 
-            global_step += 1
-            if global_step % 10 == 0 and rank == 0:
-                print(
-                    "global step %d, epoch: %d, batch: %d, loss: %.5f, accu: %.5f, speed: %.2f step/s"
-                    % (global_step, epoch, step, loss, acc,
-                       10 / (time.time() - tic_train)))
-                tic_train = time.time()
-            loss.backward()
-            optimizer.step()
+            if args.use_amp:
+                scaler.scale(loss).backward()
+                scaler.minimize(optimizer, loss)
+            else:
+                loss.backward()
+                optimizer.step()
             lr_scheduler.step()
             optimizer.clear_grad()
-            if global_step % 100 == 0 and rank == 0:
+
+            global_step += 1
+            if global_step % args.logging_steps == 0 and rank == 0:
+                time_diff = time.time() - tic_train
+                print(
+                    "global step %d, epoch: %d, batch: %d, loss: %.5f, accuracy: %.5f, speed: %.2f step/s"
+                    % (global_step, epoch, step, loss, acc,
+                       args.logging_steps / time_diff))
+                tic_train = time.time()
+
+            if global_step % args.valid_steps == 0 and rank == 0:
+                evaluate(model, criterion, metric, dev_data_loader)
+                tic_train = time.time()
+
+            if global_step % args.save_steps == 0 and rank == 0:
                 save_dir = os.path.join(args.save_dir, "model_%d" % global_step)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
-                evaluate(model, criterion, metric, dev_data_loader)
                 model._layers.save_pretrained(save_dir)
                 tokenizer.save_pretrained(save_dir)
+                tic_train = time.time()
 
 
 if __name__ == "__main__":

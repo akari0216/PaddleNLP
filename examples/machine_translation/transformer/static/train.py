@@ -60,6 +60,28 @@ def parse_args():
         type=str,
         help="The files for validation, including [source language file, target language file]. Normally, it shouldn't be set and in this case, the default WMT14 dataset will be used to do validation. "
     )
+    parser.add_argument(
+        "--vocab_file",
+        default=None,
+        type=str,
+        help="The vocab file. Normally, it shouldn't be set and in this case, the default WMT14 dataset will be used."
+    )
+    parser.add_argument(
+        "--unk_token",
+        default=None,
+        type=str,
+        help="The unknown token. It should be provided when use custom vocab_file. "
+    )
+    parser.add_argument(
+        "--bos_token",
+        default=None,
+        type=str,
+        help="The bos token. It should be provided when use custom vocab_file. ")
+    parser.add_argument(
+        "--eos_token",
+        default=None,
+        type=str,
+        help="The eos token. It should be provided when use custom vocab_file. ")
     args = parser.parse_args()
     return args
 
@@ -68,12 +90,16 @@ def do_train(args):
     paddle.enable_static()
     if args.is_distributed:
         fleet.init(is_collective=True)
+        assert args.device != "xpu", "xpu doesn't support distributed training"
         places = [paddle.set_device("gpu")] if \
                  args.device == "gpu" else paddle.static.cpu_places()
         trainer_count = len(places)
     else:
         if args.device == "gpu":
             places = paddle.static.cuda_places()
+        elif args.device == "xpu":
+            places = paddle.static.xpu_places()
+            paddle.set_device("xpu")
         else:
             places = paddle.static.cpu_places()
             paddle.set_device("cpu")
@@ -299,6 +325,10 @@ if __name__ == "__main__":
         args.max_iter = ARGS.max_iter
     args.train_file = ARGS.train_file
     args.dev_file = ARGS.dev_file
+    args.vocab_file = ARGS.vocab_file
+    args.unk_token = ARGS.unk_token
+    args.bos_token = ARGS.bos_token
+    args.eos_token = ARGS.eos_token
     pprint(args)
 
     do_train(args)

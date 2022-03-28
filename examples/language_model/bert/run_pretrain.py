@@ -20,6 +20,7 @@ import os
 import random
 import time
 import h5py
+import yaml
 import distutils.util
 from functools import partial
 from concurrent.futures import ThreadPoolExecutor
@@ -242,6 +243,7 @@ def create_input_specs():
         input_ids, segment_ids, position_ids, input_mask, masked_lm_positions
     ]
 
+
 class PretrainingDataset(Dataset):
     def __init__(self, input_file, max_pred_length):
         self.input_file = input_file
@@ -325,7 +327,8 @@ def do_train(args):
     if args.to_static:
         specs = create_input_specs()
         model = paddle.jit.to_static(model, input_spec=specs)
-        logger.info("Successfully to apply @to_static with specs: {}".format(specs))
+        logger.info("Successfully to apply @to_static with specs: {}".format(
+            specs))
 
     if paddle.distributed.get_world_size() > 1:
         model = paddle.DataParallel(model)
@@ -475,4 +478,5 @@ def do_train(args):
 
 if __name__ == "__main__":
     args = parse_args()
+    print(args)
     do_train(args)

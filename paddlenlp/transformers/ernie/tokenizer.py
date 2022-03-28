@@ -32,60 +32,79 @@ class ErnieTokenizer(PretrainedTokenizer):
     splitting, lower casing and so on, and follows a WordPiece tokenizer to
     tokenize as subwords.
 
+    This tokenizer inherits from :class:`~paddlenlp.transformers.tokenizer_utils.PretrainedTokenizer`
+    which contains most of the main methods. For more information regarding those methods,
+    please refer to this superclass.
+
     Args:
         vocab_file (str): 
-            file path of the vocabulary.
+            The vocabulary file path (ends with '.txt') required to instantiate
+            a `WordpieceTokenizer`.
         do_lower_case (str, optional): 
-            Whether the text strips accents and convert to lower case. 
-            Defaults to `True`.
+            Whether or not to lowercase the input when tokenizing.
+            Defaults to`True`.
         unk_token (str, optional): 
-            The special token for unknown words. 
+            A special token representing the *unknown (out-of-vocabulary)* token.
+            An unknown token is set to be `unk_token` inorder to be converted to an ID.
             Defaults to "[UNK]".
         sep_token (str, optional): 
-            The special token for separator token. 
+            A special token separating two different sentences in the same input.
             Defaults to "[SEP]".
         pad_token (str, optional): 
-            The special token for padding. 
+            A special token used to make arrays of tokens the same size for batching purposes.
             Defaults to "[PAD]".
         cls_token (str, optional): 
-            The special token for cls. 
-            Defaults to "[CLS]".
+            A special token used for sequence classification. It is the last token
+            of the sequence when built with special tokens. Defaults to "[CLS]".
         mask_token (str, optional): 
-            The special token for mask.
+            A special token representing a masked token. This is the token used
+            in the masked language modeling task which the model tries to predict the original unmasked ones.
             Defaults to "[MASK]".
     
     Examples:
-        .. code-block:: python
+        .. code-block::
+
             from paddlenlp.transformers import ErnieTokenizer
             tokenizer = ErnieTokenizer.from_pretrained('ernie-1.0')
-            encoded_inputs = tokenizer('这是一个测试样例')
-            # encoded_inputs: 
-            # { 
-            #   'input_ids': [1, 47, 10, 7, 27, 558, 525, 314, 656, 2], 
-            #   'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            # }
 
+            encoded_inputs = tokenizer('He was a puppeteer')
+            # encoded_inputs: 
+            # { 'input_ids': [1, 4444, 4385, 1545, 6712, 10062, 9568, 9756, 9500, 2],
+            #  'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+            # }
 
     """
     resource_files_names = {"vocab_file": "vocab.txt"}  # for save_pretrained
     pretrained_resource_files_map = {
         "vocab_file": {
             "ernie-1.0":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie/vocab.txt",
             "ernie-tiny":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_tiny/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_tiny/vocab.txt",
             "ernie-2.0-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_v2_base/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_v2_base/vocab.txt",
             "ernie-2.0-en-finetuned-squad":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_v2_base/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_v2_base/vocab.txt",
             "ernie-2.0-large-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_v2_large/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_v2_large/vocab.txt",
             "ernie-gen-base-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-gen-base-en/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-gen-base-en/vocab.txt",
             "ernie-gen-large-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-gen-large/vocab.txt",
-            "ernie-gen-large-430g-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-gen-large-430g/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-gen-large/vocab.txt",
+            "ernie-gen-large-en-430g":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-gen-large-430g/vocab.txt",
+            "rocketqa-zh-dureader-query-encoder":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/rocketqa/rocketqa-zh-dureader-vocab.txt",
+            "rocketqa-zh-dureader-para-encoder":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/rocketqa/rocketqa-zh-dureader-vocab.txt",
+            "rocketqa-v1-marco-query-encoder":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/rocketqa/rocketqa-v1-marco-vocab.txt",
+            "rocketqa-v1-marco-para-encoder":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/rocketqa/rocketqa-v1-marco-vocab.txt",
+            "rocketqa-zh-dureader-cross-encoder":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/rocketqa/rocketqa-zh-dureader-vocab.txt",
+            "rocketqa-v1-marco-cross-encoder":
+            "https://bj.bcebos.com/paddlenlp/models/transformers/rocketqa/rocketqa-v1-marco-vocab.txt",
         }
     }
     pretrained_init_configuration = {
@@ -110,7 +129,28 @@ class ErnieTokenizer(PretrainedTokenizer):
         "ernie-gen-large-en": {
             "do_lower_case": True
         },
-        "ernie-gen-large-430g-en": {
+        "ernie-gen-large-en-430g": {
+            "do_lower_case": True
+        },
+        "ppminilm-6l-768h": {
+            "do_lower_case": True
+        },
+        "rocketqa-zh-dureader-query-encoder": {
+            "do_lower_case": True
+        },
+        "rocketqa-zh-dureader-para-encoder": {
+            "do_lower_case": True
+        },
+        "rocketqa-v1-marco-query-encoder": {
+            "do_lower_case": True
+        },
+        "rocketqa-v1-marco-para-encoder": {
+            "do_lower_case": True
+        },
+        "rocketqa-zh-dureader-cross-encoder": {
+            "do_lower_case": True
+        },
+        "rocketqa-v1-marco-cross-encoder": {
             "do_lower_case": True
         },
     }
@@ -122,7 +162,8 @@ class ErnieTokenizer(PretrainedTokenizer):
                  sep_token="[SEP]",
                  pad_token="[PAD]",
                  cls_token="[CLS]",
-                 mask_token="[MASK]"):
+                 mask_token="[MASK]",
+                 **kwargs):
 
         if not os.path.isfile(vocab_file):
             raise ValueError(
@@ -130,6 +171,7 @@ class ErnieTokenizer(PretrainedTokenizer):
                 "vocabulary from a pretrained model please use "
                 "`tokenizer = ErnieTokenizer.from_pretrained(PRETRAINED_MODEL_NAME)`"
                 .format(vocab_file))
+        self.do_lower_case = do_lower_case
         self.vocab = self.load_vocabulary(vocab_file, unk_token=unk_token)
         self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
         self.wordpiece_tokenizer = WordpieceTokenizer(
@@ -137,11 +179,11 @@ class ErnieTokenizer(PretrainedTokenizer):
 
     @property
     def vocab_size(self):
-        r"""
-        return the size of vocabulary.
+        """
+        Return the size of vocabulary.
 
         Returns:
-            int: the size of vocabulary.
+            int: The size of vocabulary.
         """
         return len(self.vocab)
 
@@ -161,18 +203,6 @@ class ErnieTokenizer(PretrainedTokenizer):
                 split_tokens.append(sub_token)
         return split_tokens
 
-    def tokenize(self, text):
-        r"""
-        End-to-end tokenization for ERNIE models.
-
-        Args:
-            text (str): The text to be tokenized.
-        
-        Returns:
-            List[str]: A list of string representing converted tokens.
-        """
-        return self._tokenize(text)
-
     def convert_tokens_to_string(self, tokens):
         r"""
         Converts a sequence of tokens (list of string) in a single string. Since
@@ -184,6 +214,17 @@ class ErnieTokenizer(PretrainedTokenizer):
 
         Returns:
             str: Converted string from tokens.
+
+        Examples:
+            .. code-block::
+
+                from paddlenlp.transformers import ErnieTokenizer
+                tokenizer = ErnieTokenizer.from_pretrained('ernie-1.0')
+
+                tokens = tokenizer.tokenize('He was a puppeteer')
+                strings = tokenizer.convert_tokens_to_string(tokens)
+                #he was a puppeteer
+
         """
         out_string = " ".join(tokens).replace(" ##", "").strip()
         return out_string
@@ -197,12 +238,12 @@ class ErnieTokenizer(PretrainedTokenizer):
             Do not put this inside your training loop.
 
         Args:
-            pair (str, optional): Returns the number of added tokens in the case of a sequence 
-                pair if set to True, returns the number of added tokens in the case of a single sequence 
-                if set to False. Defaults to False.
+            pair (bool, optional):
+                Whether the input is a sequence pair or a single sequence.
+                Defaults to `False` and the input is a single sequence.
 
         Returns:
-            `int`: Number of tokens added to sequences
+            int: Number of tokens added to sequences
         """
         token_ids_0 = []
         token_ids_1 = []
@@ -213,12 +254,12 @@ class ErnieTokenizer(PretrainedTokenizer):
     def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):
         r"""
         Build model inputs from a sequence or a pair of sequence for sequence classification tasks by concatenating and
-        adding special tokens. 
-        
-        A ERNIE sequence has the following format:
-        ::
-            - single sequence: ``[CLS] X [SEP]``
-            - pair of sequences: ``[CLS] A [SEP] B [SEP]``
+        adding special tokens.
+
+        An Ernie sequence has the following format:
+
+        - single sequence:      ``[CLS] X [SEP]``
+        - pair of sequences:        ``[CLS] A [SEP] B [SEP]``
 
         Args:
             token_ids_0 (List[int]):
@@ -242,20 +283,20 @@ class ErnieTokenizer(PretrainedTokenizer):
         r"""
         Build offset map from a pair of offset map by concatenating and adding offsets of special tokens. 
         
-        A ERNIE offset_mapping has the following format:
-        ::
-            - single sequence: ``(0,0) X (0,0)``
-            - pair of sequences: `(0,0) A (0,0) B (0,0)``
+        An ERNIE offset_mapping has the following format:
+
+        - single sequence:      ``(0,0) X (0,0)``
+        - pair of sequences:        ``(0,0) A (0,0) B (0,0)``
         
         Args:
             offset_mapping_ids_0 (List[tuple]):
                 List of char offsets to which the special tokens will be added.
             offset_mapping_ids_1 (List[tuple], optional):
-                Optional second list of char offsets for offset mapping pairs.
+                Optional second list of wordpiece offsets for offset mapping pairs.
                 Defaults to `None`.
 
         Returns:
-            List[tuple]: List of char offsets with the appropriate offsets of special tokens.
+            List[tuple]: A list of wordpiece offsets with the appropriate offsets of special tokens.
         """
         if offset_mapping_1 is None:
             return [(0, 0)] + offset_mapping_0 + [(0, 0)]
@@ -279,7 +320,7 @@ class ErnieTokenizer(PretrainedTokenizer):
 
         Args:
             token_ids_0 (List[int]):
-                List of IDs.
+                A list of `inputs_ids` for the first sequence.
             token_ids_1 (List[int], optional):
                 Optional second list of IDs for sequence pairs. 
                 Defaults to `None`.
@@ -300,43 +341,56 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
     Constructs a ErnieTiny tokenizer. It uses the `dict.wordseg.pickle` cut the text to words, and 
     use the `sentencepiece` tools to cut the words to sub-words.
 
+    Examples:
+        .. code-block::
+
+            from paddlenlp.transformers import ErnieTokenizer
+            tokenizer = ErnieTokenizer.from_pretrained('ernie-1.0')
+
+            encoded_inputs = tokenizer('He was a puppeteer')
+            # encoded_inputs:
+            # { 'input_ids': [1, 4444, 4385, 1545, 6712, 10062, 9568, 9756, 9500, 2],
+            #  'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+            # }
+
     Args:
         vocab_file (str): 
             The file path of the vocabulary.
         sentencepiece_model_file (str):
-            The file path of sentencepice model.
+            The file path of sentencepiece model.
         word_dict(str):
-            The file path of word vocabulary, 
-            which is used to do chinese word segmentation.
+            The file path of word vocabulary, which is used to do chinese word segmentation.
         do_lower_case (str, optional): 
-            Whether the text strips accents and convert to lower case. 
-            Defaults to `True`.
+            Whether or not to lowercase the input when tokenizing.
+            Defaults to`True`.
         unk_token (str, optional): 
-            The special token for unknown words. 
+            A special token representing the *unknown (out-of-vocabulary)* token.
+            An unknown token is set to be `unk_token` inorder to be converted to an ID.
             Defaults to "[UNK]".
         sep_token (str, optional): 
-            The special token for separator token. 
+            A special token separating two different sentences in the same input.
             Defaults to "[SEP]".
         pad_token (str, optional): 
-            The special token for padding. 
+            A special token used to make arrays of tokens the same size for batching purposes.
             Defaults to "[PAD]".
         cls_token (str, optional): 
-            The special token for cls. 
-            Defaults to "[CLS]".
+            A special token used for sequence classification. It is the last token
+            of the sequence when built with special tokens. Defaults to "[CLS]".
         mask_token (str, optional): 
-            The special token for mask.
+            A special token representing a masked token. This is the token used
+            in the masked language modeling task which the model tries to predict the original unmasked ones.
             Defaults to "[MASK]".
 
     Examples:
-        .. code-block:: python
+        .. code-block::
+
             from paddlenlp.transformers import ErnieTinyTokenizer
             tokenizer = ErnieTinyTokenizer.from_pretrained('ernie-tiny')
-            inputs = tokenizer('这是个测试样例')
-            # inputs: 
-            # {
-            #   'input_ids': [3, 509, 79, 5822, 2340, 4734, 8886, 5], 
-            #   'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0]
-            # }
+            inputs = tokenizer('He was a puppeteer')
+            '''
+            {'input_ids': [3, 941, 977, 16690, 269, 11346, 11364, 1337, 13742, 1684, 5],
+            'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+            '''
     """
     resource_files_names = {
         "sentencepiece_model_file": "spm_cased_simp_sampled.model",
@@ -346,15 +400,15 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
     pretrained_resource_files_map = {
         "vocab_file": {
             "ernie-tiny":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_tiny/vocab.txt"
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_tiny/vocab.txt"
         },
         "sentencepiece_model_file": {
             "ernie-tiny":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_tiny/spm_cased_simp_sampled.model"
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_tiny/spm_cased_simp_sampled.model"
         },
         "word_dict": {
             "ernie-tiny":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_tiny/dict.wordseg.pickle"
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_tiny/dict.wordseg.pickle"
         },
     }
     pretrained_init_configuration = {"ernie-tiny": {"do_lower_case": True}}
@@ -369,7 +423,8 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
                  sep_token="[SEP]",
                  pad_token="[PAD]",
                  cls_token="[CLS]",
-                 mask_token="[MASK]"):
+                 mask_token="[MASK]",
+                 **kwargs):
         mod = try_import('sentencepiece')
         self.sp_model = mod.SentencePieceProcessor()
         self.word_dict = word_dict
@@ -398,10 +453,10 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
     @property
     def vocab_size(self):
         r"""
-        return the size of vocabulary.
+        Return the size of vocabulary.
 
         Returns:
-            int: the size of vocabulary.
+            int: The size of vocabulary.
         """
         return len(self.vocab)
 
@@ -455,32 +510,27 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
                 in_vocab_tokens.append(unk_token)
         return in_vocab_tokens
 
-    def tokenize(self, text):
-        r"""
-        End-to-end tokenization for ERNIE Tiny models.
-
-        Args:
-            text (str): 
-                The text to be tokenized.
-        
-        Returns:
-            List(str): 
-                A list of string representing converted tokens.
-        """
-        return self._tokenize(text)
-
     def convert_tokens_to_string(self, tokens):
         r"""
-        Converts a sequence of tokens (list of string) in a single string. Since
-        the usage of WordPiece introducing `##` to concat subwords, also remove
+        Converts a sequence of tokens (list of string) to a single string. Since
+        the usage of WordPiece introducing `##` to concat subwords, also removes
         `##` when converting.
 
         Args:
-            tokens (list): 
-                A list of string representing tokens to be converted.
+            tokens (list): A list of string representing tokens to be converted.
+
         Returns:
-            str: 
-                Converted string from tokens.
+            str: Converted string from tokens.
+
+        Examples:
+        .. code-block::
+
+            from paddlenlp.transformers import ErnieTinyTokenizer
+            tokenizer = ErnieTinyTokenizer.from_pretrained('ernie-tiny')
+            inputs = tokenizer.tokenize('He was a puppeteer')
+            #['▁h', '▁e', '▁was', '▁a', '▁pu', 'pp', 'e', '▁te', 'er']
+            strings = tokenizer.convert_tokens_to_string(tokens)
+
         """
         out_string = " ".join(tokens).replace(" ##", "").strip()
         return out_string
@@ -508,13 +558,12 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
             inside your training loop.
 
         Args:
-            pair(str, optional): 
-                Returns the number of added tokens in the case of a sequence pair if set to True, returns the
-                number of added tokens in the case of a single sequence if set to False.
-                Defaults to `Fasle`.
+            pair (bool, optional):
+                Whether the input is a sequence pair or a single sequence.
+                Defaults to `False` and the input is a single sequence.
 
         Returns:
-            int: Number of tokens added to sequences.
+            int: Number of tokens added to sequences
         """
         token_ids_0 = []
         token_ids_1 = []
@@ -527,10 +576,10 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
         Build model inputs from a sequence or a pair of sequence for sequence classification tasks by concatenating and
         adding special tokens. 
         
-        A ERNIE sequence has the following format:
-        ::
-            - single sequence: ``[CLS] X [SEP]``
-            - pair of sequences: ``[CLS] A [SEP] B [SEP]``
+        An ERNIE sequence has the following format:
+
+        - single sequence:       ``[CLS] X [SEP]``
+        - pair of sequences:        ``[CLS] A [SEP] B [SEP]``
 
         Args:
             token_ids_0 (List[int]):
@@ -554,20 +603,20 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
         r"""
         Build offset map from a pair of offset map by concatenating and adding offsets of special tokens. 
         
-        A ERNIE offset_mapping has the following format:
-        ::
-            - single sequence: ``(0,0) X (0,0)``
-            - pair of sequences: `(0,0) A (0,0) B (0,0)``
+        An ERNIE offset_mapping has the following format:
+
+        - single sequence:      ``(0,0) X (0,0)``
+        - pair of sequences:        ``(0,0) A (0,0) B (0,0)``
         
         Args:
             offset_mapping_ids_0 (List[tuple]):
                 List of char offsets to which the special tokens will be added.
             offset_mapping_ids_1 (List[tuple], optional):
-                Optional second list of char offsets for offset mapping pairs.
+                Optional second list of wordpiece offsets for offset mapping pairs.
                 Defaults to `None`.
 
         Returns:
-            List[tuple]: List of char offsets with the appropriate offsets of special tokens.
+            List[tuple]: List of wordpiece offsets with the appropriate offsets of special tokens.
         """
         if offset_mapping_1 is None:
             return [(0, 0)] + offset_mapping_0 + [(0, 0)]
@@ -591,7 +640,7 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
 
         Args:
             token_ids_0 (List[int]):
-                List of IDs.
+                A list of `inputs_ids` for the first sequence.
             token_ids_1 (List[int], optional):
                 Optional second list of IDs for sequence pairs.
                 Defaults to `None`.
@@ -618,7 +667,7 @@ class ErnieTinyTokenizer(PretrainedTokenizer):
             token_ids_0 (List[int]): 
                 List of ids of the first sequence.
             token_ids_1 (List[int], optinal): 
-                List of ids of the second sequence.
+                Optional second list of IDs for sequence pairs.
                 Defaults to `None`.
             already_has_special_tokens (str, optional): 
                 Whether or not the token list is already formatted with special tokens for the model. 

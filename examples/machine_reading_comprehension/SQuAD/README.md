@@ -22,7 +22,7 @@ SQuAD v2.0
 
 ### 数据准备
 
-为了方便开发者进行测试，我们内置了数据下载脚本，用户可以通过命令行传入`--version_2_with_negative`控制所需要的SQuAD数据集版本，也可以通过`--train_file`和`--predict_file`传入本地数据集的位置，数据集需保证与SQuAD数据集格式一致。
+为了方便开发者进行测试，我们使用了HuggingFace的数据集，用户可以通过命令行传入`--version_2_with_negative`控制所需要的SQuAD数据集版本。
 
 ### Fine-tune
 
@@ -117,6 +117,51 @@ python -m paddle.distributed.launch --gpus "0" run_squad.py \
 
 ### 预测
 
+如需使用训练好的模型预测并输出结果，需将自己的数据集改成SQuAD格式（以下示例为SQuAD2.0）。
+
+```text
+{"data": [{'title': 'Beyoncé',
+ 'paragraphs': [
+                 {'qas': [{'question': 'When did Beyonce start becoming popular?',
+                         'id': '56be85543aeaaa14008c9063',
+                         'answers': [],
+                      'is_impossible': False}]],
+                             'context':'Beyoncé Giselle Knowles-Carter(biːˈjɒnseɪ/ bee-YON-say) (born September 4, 1981) is an American singer, songwriter, record producer and actress. Born and raised in Houston, Texas, she.'}
+     }]
+```
+
+并参考[以内置数据集格式读取本地数据集](https://paddlenlp.readthedocs.io/zh/latest/data_prepare/dataset_load.html#id4)中的方法创建自己的数据集并修改`run_squad.py`中对应的数据集读取代码。再运行以下脚本：
+
+```shell
+unset CUDA_VISIBLE_DEVICES
+python -m paddle.distributed.launch --gpus "0" run_squad.py \
+    --model_type bert \
+    --model_name_or_path your-best-model \
+    --max_seq_length 384 \
+    --batch_size 12 \
+    --learning_rate 3e-5 \
+    --num_train_epochs 2 \
+    --logging_steps 1000 \
+    --save_steps 1000 \
+    --warmup_proportion 0.1 \
+    --weight_decay 0.01 \
+    --output_dir ./tmp/squad/ \
+    --device gpu \
+    --do_predict \
+    --version_2_with_negative
+ ```
+
+即可完成预测，预测的答案保存在`prediction.json`中。数据格式如下所示，左边的id与输入中的id对应。
+
+```text
+{
+    "56be85543aeaaa14008c9063": "in the late 1990s",
+    ...
+}
+```
+
+### 静态图预测
+
 在Fine-tune完成后，我们可以使用如下方式导出希望用来预测的模型：
 
 ```shell
@@ -131,7 +176,7 @@ python -u ./export_model.py \
 - `model_path` 表示训练模型的保存路径，与训练时的`output_dir`一致。
 - `output_path` 表示导出预测模型文件的前缀。保存时会添加后缀（`pdiparams`，`pdiparams.info`，`pdmodel`）；除此之外，还会在`output_path`包含的目录下保存tokenizer相关内容。
 
-然后按照如下的方式对阅读理解任务进行预测（基于Paddle的[Python预测API](https://www.paddlepaddle.org.cn/documentation/docs/zh/guides/05_inference_deployment/inference/python_infer_cn.html)）：
+然后按照如下的方式对阅读理解任务进行预测：
 
 ```shell
 python -u deploy/python/predict.py \
@@ -147,4 +192,4 @@ python -u deploy/python/predict.py \
 - `batch_size` 表示每个预测批次的样本数目。
 - `max_seq_length` 表示最大句子长度，超过该长度将被截断，和训练时一致。
 
-以上命令将在SQuAD v1.1的验证集上进行预测。此外，同训练时一样，用户可以通过命令行传入`--version_2_with_negative`控制所需要的SQuAD数据集版本，也可以通过`--train_file`和`--predict_file`传入本地数据集的位置，数据集需保证与SQuAD数据集格式一致。
+以上命令将在SQuAD v1.1的验证集上进行预测。此外，同训练时一样，用户可以通过命令行传入`--version_2_with_negative`控制所需要的SQuAD数据集版本。

@@ -19,6 +19,7 @@ import math
 import os
 import random
 import time
+import sys
 
 os.path.expandvars('$HOME')
 os.path.expanduser('~')
@@ -31,9 +32,13 @@ from modeling import GPTModel, GPTForPretraining, GPTPretrainingCriterion
 from paddlenlp.transformers import GPTTokenizer, GPTChineseTokenizer
 from paddlenlp.ops import guard, Topology, get_rng_state_tracker
 from paddlenlp.utils.log import logger
+from paddlenlp.utils import profiler
 import paddlenlp.ops as ops
 from visualdl import LogWriter
 
+# Used to load the data_tools path, should import before dataset
+filepath = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(filepath, "../../"))
 from dataset import create_pretrained_dataset
 from args import parse_args
 import lr
@@ -50,15 +55,11 @@ def create_data_holder(args):
         name="tokens", shape=[-1, args.max_seq_len], dtype="int64")
     loss_mask = paddle.static.data(
         name="loss_mask", shape=[-1, args.max_seq_len], dtype="float32")
-    attention_mask = paddle.static.data(
-        name="attention_mask",
-        shape=[-1, 1, args.max_seq_len, args.max_seq_len],
-        dtype="float32")
     position_ids = paddle.static.data(
         name="position_ids", shape=[-1, args.max_seq_len], dtype="int64")
     labels = paddle.static.data(
         name="labels", shape=[-1, args.max_seq_len], dtype="int64")
-    return [tokens, loss_mask, attention_mask, position_ids, labels]
+    return [tokens, loss_mask, position_ids, labels]
 
 
 def dist_optimizer(args, topo):
@@ -87,13 +88,15 @@ def dist_optimizer(args, topo):
         dist_strategy.amp = True
         dist_strategy.amp_configs = {
             "custom_white_list": [
-                'softmax',
-                'layer_norm',
-                'gelu',
+                'softmax', 'layer_norm', 'gelu',
+                "fused_softmax_mask_upper_triangle", "elementwise_add"
             ],
-            "custom_black_list": ['c_softmax_with_cross_entropy'],
+            "custom_black_list":
+            ["reduce_sum", "c_softmax_with_cross_entropy", "elementwise_div"],
             "init_loss_scaling": 32768,
             "use_dynamic_loss_scaling": True,
+            "use_pure_fp16": args.amp_level == "O2",
+            "use_fp16_guard": False
         }
     if args.use_sharding:
         dist_strategy.sharding = True
@@ -121,12 +124,25 @@ def dist_optimizer(args, topo):
 def get_train_data_file(args):
     files = [
         os.path.join(args.input_dir, f) for f in os.listdir(args.input_dir)
-        if (os.path.isfile(os.path.join(args.input_dir, f)) and "npz_" not in
-            str(f))
+        if (os.path.isfile(os.path.join(args.input_dir, f)) and str(f).endswith(
+            "_idx.npz"))
+    ]
+    files = [x.replace("_idx.npz", "") for x in files]
+    if len(files) == 0:
+        logger.warning(
+            "Not found dataset with name of xxx_ids.npy and xxx_idx.npz! Try to found old compatible xxx_ids.npz file."
+        )
+    else:
+        return files
+
+    files = [
+        os.path.join(args.input_dir, f) for f in os.listdir(args.input_dir)
+        if (os.path.isfile(os.path.join(args.input_dir, f)) and str(f).endswith(
+            "_ids.npz"))
     ]
 
-    data_file = files[0]
-    return data_file
+    files = [x.replace("_ids.npz", "") for x in files]
+    return files
 
 
 def init_static_with_params(model, dygraph_params, topo, prog=None):
@@ -182,6 +198,12 @@ def do_train(args):
     get_rng_state_tracker().add('local_seed',
                                 args.seed + fleet.worker_index() + 2021)
 
+    if args.use_amp and args.amp_level == "O2":
+        assert (args.mp_degree == 1 and args.pp_degree == 1
+                ), "When amp level is O2, mp_degree and pp_degree should be 1."
+        assert (args.use_sharding == False
+                ), "When amp level is O2, use_sharding should be False."
+
     assert args.device in [
         "cpu", "gpu", "xpu"
     ], "Invalid device! Available device should be cpu, gpu, or xpu."
@@ -189,6 +211,7 @@ def do_train(args):
 
     worker_num = fleet.worker_num()
     worker_index = fleet.worker_index()
+    local_rank = 0 if fleet.local_rank() is None else int(fleet.local_rank())
 
     topo = Topology(
         device_rank=worker_index,
@@ -227,8 +250,7 @@ def do_train(args):
         with paddle.utils.unique_name.guard():
             with paddle.static.device_guard('gpu:0'):
                 data_holders = create_data_holder(args)
-                [tokens, loss_mask, attention_mask, position_ids,
-                 labels] = data_holders
+                [tokens, loss_mask, position_ids, labels] = data_holders
 
                 tokenizer = tokenizer_class.from_pretrained(
                     args.model_name_or_path)
@@ -237,6 +259,7 @@ def do_train(args):
                 train_data_loader, valid_data_loader, test_data_loader = create_pretrained_dataset(
                     args,
                     data_file,
+                    local_rank=local_rank,
                     data_world_size=topo.data_info.size,
                     data_world_rank=topo.data_info.rank,
                     eos_id=eos_id,
@@ -265,9 +288,8 @@ def do_train(args):
                         attention_probs_dropout_prob=args.
                         attention_probs_dropout_prob,
                         topo=topo)
-
                 # Create the model for the gpt pretrain
-                preds = model(tokens, position_ids, attention_mask)
+                preds = model(tokens, position_ids)
 
                 criterion = guard(f'gpu:{args.pp_degree -1}')(
                     GPTPretrainingCriterion)(topo)
@@ -294,33 +316,16 @@ def do_train(args):
                 p.name for n, p in model.named_parameters()
                 if not any(nd in n for nd in ["bias", "norm"])
             ]
-            # TODO @ZHUI Use paddle.optimizer.AdamW
-            if ops.optimizer._jit_compile():
-                logger.info("Using paddlenlp custom AdamW optimizer.")
-                optimizer = ops.optimizer.AdamwOptimizer(
-                    learning_rate=lr_scheduler,
-                    beta1=args.adam_beta1,
-                    beta2=args.adam_beta2,
-                    epsilon=args.adam_epsilon,
-                    grad_clip=clip,
-                    weight_decay=args.weight_decay,
-                    apply_decay_param_fun=lambda x: x in decay_param)
-            else:
-                if args.sharding_degree > 1:
-                    raise ValueError(
-                        "The paddle.optimizer.AdamW not compatible with Sharding!"
-                    )
-                logger.info("Using paddle.optimizer.AdamW.")
-                optimizer = paddle.optimizer.AdamW(
-                    learning_rate=lr_scheduler,
-                    beta1=args.adam_beta1,
-                    beta2=args.adam_beta2,
-                    epsilon=args.adam_epsilon,
-                    grad_clip=clip,
-                    weight_decay=args.weight_decay,
-                    apply_decay_param_fun=lambda x: x in decay_param)
-                # alias
-                optimizer.apply_optimize = optimizer._apply_optimize
+            optimizer = paddle.optimizer.AdamW(
+                learning_rate=lr_scheduler,
+                beta1=args.adam_beta1,
+                beta2=args.adam_beta2,
+                epsilon=args.adam_epsilon,
+                grad_clip=clip,
+                weight_decay=args.weight_decay,
+                apply_decay_param_fun=lambda x: x in decay_param)
+            # alias
+            optimizer.apply_optimize = optimizer._apply_optimize
 
             if args.use_recompute:
                 dist_strategy.recompute = True
@@ -341,18 +346,21 @@ def do_train(args):
     if not os.path.isdir(program_desc_dir):
         os.mkdir(program_desc_dir)
 
-    with open(program_desc_dir + "/main_program.txt.%d" %
-              (int(os.environ.get('FLAGS_selected_gpus', 0))), 'w') as f:
+    with open(program_desc_dir + "/main_program.txt.%d" % worker_index,
+              'w') as f:
         f.write(str(main_program))
 
-    with open(program_desc_dir + "/startup_program.txt.%d" %
-              (int(os.environ.get('FLAGS_selected_gpus', 0))), 'w') as f:
+    with open(program_desc_dir + "/startup_program.txt.%d" % worker_index,
+              'w') as f:
         f.write(str(startup_program))
 
     # Define the Executor for running the static model
     exe = paddle.static.Executor(place)
     exe.run(startup_program)
     test_program = main_program.clone(for_test=True)
+
+    if args.use_amp and args.amp_level == "O2":
+        optimizer.amp_init(place)
 
     if args.model_name_or_path not in pretrained_models_list:
         logger.info("Try to load checkpoint from %s " % args.model_name_or_path)
@@ -399,28 +407,46 @@ def do_train(args):
         valid_data_loader = valid_data_loader()
         test_data_loader = test_data_loader()
 
+        train_reader_cost = 0.0
+        train_run_cost = 0.0
+        reader_start = time.time()
         for step, batch in enumerate(train_data_loader()):
+            train_reader_cost += time.time() - reader_start
+            train_start = time.time()
+
             global_step += 1
+
             ret = exe.run(main_program,
                           feed=batch,
                           fetch_list=fetchs,
                           use_program_cache=True)
             # In the new 2.0 api, must call this function to change the learning_rate
             lr_scheduler.step()
+            train_run_cost += time.time() - train_start
+
+            # Profile for model benchmark
+            profiler.add_profiler_step(args.profiler_options)
 
             if global_step % args.logging_freq == 0:
                 if topo.is_last:
                     loss_return, lr_return = ret
-                    speed = args.logging_freq / (time.time() - tic_train)
+                    #speed = args.logging_freq / (time.time() - tic_train)
+                    speed = args.logging_freq / (
+                        train_reader_cost + train_run_cost)
+                    avg_reader_cost = train_reader_cost / args.logging_freq
                     logger.info(
-                        "global step %d, epoch: %d, batch: %d, loss: %.9f, speed: %.2f steps/s, ips: %.0f tokens/s, learning rate: %.5e"
-                        % (global_step, epoch, step, loss_return[0], speed,
+                        "global step %d, epoch: %d, batch: %d, loss: %.9f, avg_reader_cost: %.5f sec, avg_batch_cost: %.5f sec, speed: %.2f steps/s, ips: %.0f tokens/s, ips_per_card: %.0f tokens/s, learning rate: %.5e"
+                        % (global_step, epoch, step, loss_return[0],
+                           avg_reader_cost, 1. / speed, speed,
                            speed * args.global_batch_size * args.max_seq_len,
-                           lr_return[0]))
+                           speed * args.global_batch_size * args.max_seq_len /
+                           worker_num, lr_return[0]))
                     log_writer.add_scalar("loss", loss_return[0], global_step)
                     log_writer.add_scalar("learning_rate", lr_return[0],
                                           global_step)
                 tic_train = time.time()
+                train_reader_cost = 0.0
+                train_run_cost = 0.0
 
             if args.check_accuracy:
                 if global_step >= args.max_steps:
@@ -446,7 +472,7 @@ def do_train(args):
                 save_persistables(exe,
                                   os.path.join(output_dir, "static_vars"),
                                   main_program)
-                if global_step == args.save_steps:
+                if global_step <= args.save_steps:
                     model.init_config["init_args"][0].init_config.pop("topo",
                                                                       None)
                 model.save_pretrained(output_dir)
@@ -463,6 +489,8 @@ def do_train(args):
                              epoch, topo.is_last, eval_fetch, "test")
                 del train_data_loader
                 return
+            reader_start = time.time()
+
         epoch += 1
 
 

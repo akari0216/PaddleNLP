@@ -28,50 +28,55 @@ __all__ = ['ErnieGramTokenizer']
 
 class ErnieGramTokenizer(ErnieTokenizer):
     r"""
-    Constructs an ERNIE-Gram tokenizer. It uses a basic tokenizer to do punctuation
-    splitting, lower casing and so on, and follows a WordPiece tokenizer to
-    tokenize as subwords.
+    Constructs an ERNIE-Gram tokenizer. It uses a basic tokenizer to do punctuation splitting, lower casing and so on,
+    and follows a WordPiece tokenizer to tokenize as subwords.
+
+    This tokenizer inherits from :class:`~paddlenlp.transformers.ernie.tokenizer.ErnieTokenizer`.
+    For more information regarding those methods, please refer to this superclass.
 
     Args:
         vocab_file (str): 
-            file path of the vocabulary.
-        do_lower_case (str, optional): 
-            Whether the text strips accents and convert to lower case. 
+            The vocabulary file path (ends with '.txt') required to instantiate
+            a `WordpieceTokenizer`.
+        do_lower_case (str, optional):
+            Whether or not to lowercase the input when tokenizing.
             Defaults to `True`.
         unk_token (str, optional): 
-            The special token for unknown words. 
+            A special token representing the *unknown (out-of-vocabulary)* token.
+            An unknown token is set to be `unk_token` inorder to be converted to an ID.
             Defaults to "[UNK]".
         sep_token (str, optional): 
-            The special token for separator token. 
+            A special token separating two different sentences in the same input.
             Defaults to "[SEP]".
         pad_token (str, optional): 
-            The special token for padding. 
+            A special token used to make arrays of tokens the same size for batching purposes.
             Defaults to "[PAD]".
         cls_token (str, optional): 
-            The special token for cls. 
-            Defaults to "[CLS]".
+            A special token used for sequence classification. It is the last token
+            of the sequence when built with special tokens. Defaults to "[CLS]".
         mask_token (str, optional): 
-            The special token for mask.
+            A special token representing a masked token. This is the token used
+            in the masked language modeling task which the model tries to predict the original unmasked ones.
             Defaults to "[MASK]".
     
     Examples:
-        .. code-block:: python
+        .. code-block::
+
             from paddlenlp.transformers import ErnieGramTokenizer
             tokenizer = ErnieGramTokenizer.from_pretrained('ernie-gram-zh')
-            encoded_inputs = tokenizer('这是一个测试样例')
+            encoded_inputs = tokenizer('He was a puppeteer')
             # encoded_inputs: 
-            # { 
-            #   'input_ids': [1, 47, 10, 7, 27, 558, 525, 314, 656, 2], 
+            # {
+            #   'input_ids': [1, 4444, 4385, 1545, 6712, 10062, 9568, 9756, 9500, 2],
             #   'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             # }
-
 
     """
     resource_files_names = {"vocab_file": "vocab.txt"}  # for save_pretrained
     pretrained_resource_files_map = {
         "vocab_file": {
             "ernie-gram-zh":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie_gram_zh/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie_gram_zh/vocab.txt",
         }
     }
     pretrained_init_configuration = {"ernie-gram-zh": {"do_lower_case": True}, }
@@ -83,7 +88,8 @@ class ErnieGramTokenizer(ErnieTokenizer):
                  sep_token="[SEP]",
                  pad_token="[PAD]",
                  cls_token="[CLS]",
-                 mask_token="[MASK]"):
+                 mask_token="[MASK]",
+                 **kwargs):
         super(ErnieGramTokenizer, self).__init__(
             vocab_file,
             do_lower_case=do_lower_case,

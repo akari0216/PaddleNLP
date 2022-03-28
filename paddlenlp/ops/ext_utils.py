@@ -34,6 +34,22 @@ if CUDA_HOME and not os.path.exists(CUDA_HOME):
     # Clear it for other non-CUDA situations.
     CUDA_HOME = None
 
+LOADED_EXT = {}
+
+
+def _get_files(path):
+    """
+    Helps to list all files under the given path.
+    """
+    if os.path.isfile(path):
+        return [path]
+    all_files = []
+    for root, _dirs, files in os.walk(path, followlinks=True):
+        for file in files:
+            file = os.path.join(root, file)
+            all_files.append(file)
+    return all_files
+
 
 class CMakeExtension(Extension):
     def __init__(self, name, source_dir=None):
@@ -43,10 +59,7 @@ class CMakeExtension(Extension):
             self.source_dir = str(Path(__file__).parent.resolve())
         else:
             self.source_dir = os.path.abspath(os.path.expanduser(source_dir))
-        self.sources = [
-            os.path.join(self.source_dir, f)
-            for f in os.listdir(self.source_dir)
-        ]
+        self.sources = _get_files(self.source_dir)
 
     def build_with_command(self, ext_builder):
         """
@@ -95,6 +108,10 @@ class CMakeExtension(Extension):
 class FasterTransformerExtension(CMakeExtension):
     def __init__(self, name, source_dir=None):
         super(FasterTransformerExtension, self).__init__(name, source_dir)
+        self.sources = _get_files(
+            os.path.
+            join(self.source_dir, "faster_transformer", "src")) + _get_files(
+                os.path.join(self.source_dir, "patches", "FasterTransformer"))
         self._std_out_handle = None
         # Env variable may not work as expected, since jit compile by `load`
         # would not re-built if source code is not update.
@@ -114,7 +131,7 @@ class FasterTransformerExtension(CMakeExtension):
         # `GetCUDAComputeCapability` is not exposed yet, and detect CUDA/GPU
         # version in cmake file.
         # self.cmake_args += [f"-DSM={self.sm}"] if self.sm is not None else []
-        self.cmake_args = [f"-DWITH_GPT=ON"]
+        self.cmake_args += [f"-DWITH_GPT=ON"]
         try:
             super(FasterTransformerExtension,
                   self).build_with_command(ext_builder)
@@ -206,8 +223,14 @@ def load(name, build_dir=None, force=False, verbose=False, **kwargs):
         logger.warning("%s is not available because CUDA can not be found." %
                        name)
         raise NotImplementedError
+    if name in LOADED_EXT.keys():
+        return LOADED_EXT[name]
     if build_dir is None:
-        build_dir = os.path.join(PPNLP_HOME, 'extenstions')
+        # Maybe under package dir is better to avoid cmake source path conflict
+        # with different source path.
+        # build_dir = os.path.join(PPNLP_HOME, 'extenstions')
+        build_dir = os.path.join(
+            str(Path(__file__).parent.resolve()), 'extenstions')
     build_base_dir = os.path.abspath(
         os.path.expanduser(os.path.join(build_dir, name)))
     if not os.path.exists(build_base_dir):
@@ -228,7 +251,9 @@ def load(name, build_dir=None, force=False, verbose=False, **kwargs):
                     ext_sources, ext_filepath, 'newer'):
                 logger.debug("skipping '%s' extension (up-to-date) build" %
                              name)
-                return load_op_meta_info_and_register_op(ext_filepath)
+                ops = load_op_meta_info_and_register_op(ext_filepath)
+                LOADED_EXT[name] = ops
+                return LOADED_EXT[name]
 
     # write setup file and jit compile
     file_path = os.path.join(build_dir, "{}_setup.py".format(name))
@@ -237,7 +262,9 @@ def load(name, build_dir=None, force=False, verbose=False, **kwargs):
     if isinstance(extension, CMakeExtension):
         # Load a shared library (if exists) only to register op.
         if os.path.exists(ext_filepath):
-            load_op_meta_info_and_register_op(ext_filepath)
+            ops = load_op_meta_info_and_register_op(ext_filepath)
+            LOADED_EXT[name] = ops
+            return LOADED_EXT[name]
     else:
         # Import as callable python api
         return _import_module_from_library(name, build_base_dir, verbose)

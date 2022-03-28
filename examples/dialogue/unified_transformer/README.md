@@ -6,7 +6,7 @@
 
 [UnifiedTransformer](https://arxiv.org/abs/2006.16779)以[Transformer](https://arxiv.org/abs/1706.03762) 编码器为网络基本组件，采用灵活的注意力机制，十分适合对话生成任务。
 
-本项目是UnifiedTransformer在 Paddle 2.0上的开源实现，包含了在[DuConv](https://www.aclweb.org/anthology/P19-1369/)数据集上微调和预测的代码。
+本项目是UnifiedTransformer在 Paddle 2.0上的开源实现，介绍了如何使用UnifiedTransformer在DuConv任务型对话数据集上进行微调，并给出了一个搭建简单中文聊天机器人的例子。
 
 ## 快速开始
 
@@ -42,9 +42,13 @@ train_ds, dev_ds, test1_ds, test2_ds = load_dataset('duconv', splits=('train', '
 
 ### 预训练模型
 
-* unified_transformer-12L-cn: 12-layers, 12-heads, 768-hidden, 在千万级别的中文会话数据上进行预训练。
-* unified_transformer-12L-cn-luge: 12-layers, 12-heads, 768-hidden, 由unified_transformer-12L-cn预训练模型在千言对话数据集上进行微调。并且模型输入中加入了标识不同对话技能的special token，使得模型能同时支持闲聊对话、推荐对话和知识对话。
-* plato-mini: 6-layers, 12-heads, 768-hidden, 在十亿级别的中文对话数据上进行预训练。参数量更小，但效果更好。
+以下是PaddleNLP支持的对话类预训练模型：
+
+|模型名称| 模型参数 | 模型特点 |
+|:-----:|:------:|:-------:|
+|unified_transformer-12L-cn| 12-layers, 12-heads, 768-hidden| 在千万级别的中文会话数据上进行预训练。|
+|unified_transformer-12L-cn-luge| 12-layers, 12-heads, 768-hidden|由unified_transformer-12L-cn预训练模型在千言对话数据集上进行微调。并且模型输入中加入了标识不同对话技能的special token，使得模型能同时支持闲聊对话、推荐对话和知识对话。|
+|plato-mini| 6-layers, 12-heads, 768-hidden|在十亿级别的中文对话数据上进行预训练。参数量更小，但效果更好。只支持闲聊型对话。|
 
 ### 模型训练
 
@@ -114,7 +118,7 @@ python -m paddle.distributed.launch --gpus '0' --log_dir ./log finetune.py \
 
 ### 模型预测
 
-运行如下命令即可在测试集上进行测试
+运行如下命令即可在测试集上进行测试。
 
 ```shell
 # GPU启动，预测仅支持单卡
@@ -156,6 +160,10 @@ python infer.py \
 - `top_k` 表示采用"sampling"解码策略时，token的概率按从大到小排序，生成的token只从前`top_k`个中进行采样。
 - `device` 表示使用的设备。
 
+同时，我们提供了基于 FasterTransformer 的高性能预测的选项，可以选择性开启是否需要采用高性能预测，PaddleNLP 提供了 JIT 的方式，可以自动完成对所需的自定义 op 的动态库编译：
+- `faster` 表示是否开启高性能预测。设置 `--faster` 即表示开启。
+- `use_fp16_decoding` 表示在开启高性能预测的时候，是否使用 fp16 来完成预测过程。设置 `--use_fp16_decoding` 即表示使用 fp16 进行预测，否则使用 fp32。
+
 程序运行结束后会将预测生成的response保存在`output_path`中。同时终端中会输出评估结果。
 
 采用预训练模型及微调模型在测试集上有如下结果：
@@ -169,14 +177,14 @@ python infer.py \
 
 ### 人机交互
 
-运行如下命令即可开始与聊天机器人用中文进行简单的对话
+运行如下命令即可开始与聊天机器人用中文进行简单的对话。
 
 ```shell
 # GPU启动，仅支持单卡
 export CUDA_VISIBLE_DEVICES=0
 python interaction.py \
     --model_name_or_path=plato-mini \
-    --min_dec_len=1 \
+    --min_dec_len=0 \
     --max_dec_len=64 \
     --num_return_sequences=20 \
     --decode_strategy=sampling \

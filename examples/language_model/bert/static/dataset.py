@@ -28,7 +28,7 @@ def create_pretraining_dataset(input_file,
                                places=None):
     train_data = PretrainingDataset(
         input_file=input_file, max_pred_length=max_pred_length)
-    train_batch_sampler = paddle.io.DistributedBatchSampler(
+    train_batch_sampler = paddle.io.BatchSampler(
         train_data, batch_size=args.batch_size, shuffle=True)
 
     def _collate_data(data, stack_fn=Stack()):
@@ -125,7 +125,7 @@ class PretrainingDataset(Dataset):
         # TODO: whether to use reversed mask by changing 1s and 0s to be
         # consistent with nv bert
         input_mask = (1 - np.reshape(
-            input_mask.astype(np.float32), [1, 1, input_mask.shape[0]])) * -1e9
+            input_mask.astype(np.float32), [1, 1, input_mask.shape[0]])) * -1e4
 
         index = self.max_pred_length
         # store number of  masked tokens in index

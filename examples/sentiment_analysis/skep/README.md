@@ -7,7 +7,7 @@
 论文地址：https://arxiv.org/abs/2005.05635
 
 <p align="center">
-<img src="https://paddlenlp.bj.bcebos.com/models/transformers/skep/skep.png" width="80%" height="60%"> <br />
+<img src="https://bj.bcebos.com/paddlenlp/models/transformers/skep/skep.png" width="80%" height="60%"> <br />
 </p>
 
 百度研究团队在三个典型情感分析任务，句子级情感分类（Sentence-level Sentiment Classification），评价对象级情感分类（Aspect-level Sentiment Classification）、观点抽取（Opinion Role Labeling），共计14个中英文数据上进一步验证了情感预训练模型SKEP的效果。实验表明，以通用预训练模型ERNIE作为初始化，具体效果如下表：
@@ -178,4 +178,32 @@ python predict_sentence.py --model_name "skep_ernie_1.0_large_ch" --device 'gpu'
 Data: 这个宾馆比较陈旧了，特价的房间也很一般。总体来说一般      Label: negative
 Data: 怀着十分激动的心情放映，可是看着看着发现，在放映完毕后，出现一集米老鼠的动画片      Label: negative
 Data: 作为老的四星酒店，房间依然很整洁，相当不错。机场接机服务很好，可以在车上办理入住手续，节省时间。      Label: positive
+```
+
+### Taskflow一键预测
+可以使用PaddleNLP提供的Taskflow工具来对输入的文本进行一键情感分析，具体使用方法如下:
+
+```python
+
+from paddlenlp import Taskflow
+
+senta = Taskflow("sentiment_analysis")
+senta("怀着十分激动的心情放映，可是看着看着发现，在放映完毕后，出现一集米老鼠的动画片")
+'''
+[{'text': '怀着十分激动的心情放映，可是看着看着发现，在放映完毕后，出现一集米老鼠的动画片', 'label': 'negative'}]
+'''
+senta(["怀着十分激动的心情放映，可是看着看着发现，在放映完毕后，出现一集米老鼠的动画片",
+       "作为老的四星酒店，房间依然很整洁，相当不错。机场接机服务很好，可以在车上办理入住手续，节省时间"])
+'''
+[{'text': '怀着十分激动的心情放映，可是看着看着发现，在放映完毕后，出现一集米老鼠的动画片', 'label': 'negative'},
+ {'text': '作为老的四星酒店，房间依然很整洁，相当不错。机场接机服务很好，可以在车上办理入住手续，节省时间', 'label': 'positive'}
+]
+'''
+
+# 使用skep_ernie_1.0_large_ch模型进行情感分析
+senta = Taskflow("sentiment_analysis", model="skep_ernie_1.0_large_ch")
+senta("作为老的四星酒店，房间依然很整洁，相当不错。机场接机服务很好，可以在车上办理入住手续，节省时间。")
+'''
+[{'text': '作为老的四星酒店，房间依然很整洁，相当不错。机场接机服务很好，可以在车上办理入住手续，节省时间。', 'label': 'positive'}]
+'''
 ```

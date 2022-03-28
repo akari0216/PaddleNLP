@@ -15,12 +15,13 @@
 import argparse
 
 import paddle
-import paddlenlp as ppnlp
 from paddlenlp.data import Vocab
+
+from model import BoWModel, BiLSTMAttentionModel, CNNModel, LSTMModel, GRUModel, RNNModel, SelfInteractiveAttention
 
 # yapf: disable
 parser = argparse.ArgumentParser(__doc__)
-parser.add_argument("--vocab_path", type=str, default="./senta_word_dict.txt", help="The path to vocabulary.")
+parser.add_argument("--vocab_path", type=str, default="./vocab.json", help="The file path to vocabulary.")
 parser.add_argument('--network', choices=['bow', 'lstm', 'bilstm', 'gru', 'bigru', 'rnn', 'birnn', 'bilstm_attn', 'cnn'],
     default="bilstm", help="Select which network to train, defaults to bilstm.")
 parser.add_argument('--device', choices=['cpu', 'gpu', 'xpu'], default="gpu", help="Select which device to train model, defaults to gpu.")
@@ -32,7 +33,7 @@ args = parser.parse_args()
 
 def main():
     # Load vocab.
-    vocab = Vocab.load_vocabulary(args.vocab_path)
+    vocab = Vocab.from_json(args.vocab_path)
     label_map = {0: 'negative', 1: 'positive'}
 
     # Constructs the newtork.
@@ -56,7 +57,7 @@ def main():
             padding_idx=pad_token_id)
     elif network == 'bilstm_attn':
         lstm_hidden_size = 196
-        attention = SelfInteractiveAttention(hidden_size=2 * stm_hidden_size)
+        attention = SelfInteractiveAttention(hidden_size=2 * lstm_hidden_size)
         model = BiLSTMAttentionModel(
             attention_layer=attention,
             vocab_size=vocab_size,

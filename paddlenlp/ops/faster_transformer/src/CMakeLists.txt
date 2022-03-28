@@ -1,3 +1,8 @@
+if (${CUDA_VERSION} GREATER_EQUAL 11.0)
+  message(STATUS "Add DCUDA11_MODE")
+  add_definitions("-DCUDA11_MODE")
+endif()
+
 add_definitions(-DNDEBUG)
 add_definitions(-DPADDLE_CUDA)
 # Default is 1 in standard c++ when using gcc8.2
@@ -9,7 +14,7 @@ if(ON_INFER)
   link_directories(${COMMON_LIB_DIRS})
 
   set(ft_lib_link
-    decoder decoding topk cuda_int8_kernels cuda_kernels online_softmax_beamsearch
+    decoder decoding topk cuda_int8_kernels cuda_kernels online_softmax_beamsearch transformer_kernels attention_kernels encoder nccl_utils nvtx_utils
   )
 
   if(WITH_GPU)
@@ -145,8 +150,9 @@ if(ON_INFER)
     set(DEPS ${DEPS} shlwapi.lib)
   endif(NOT WIN32)
 
-  cuda_add_library(pd_infer_custom_op ${decoding_op_files} ${decoder_op_files} SHARED)
-  add_dependencies(pd_infer_custom_op extern_${THIRD_PARTY_NAME})
+  cuda_add_library(decoding_infer_op ${decoding_op_files} SHARED)
+  add_dependencies(decoding_infer_op extern_${THIRD_PARTY_NAME} boost)
+
   string(REPLACE "/" ";" DEMO_PATH ${DEMO})
 
   list(LENGTH DEMO_PATH PATH_LEN)
@@ -156,10 +162,11 @@ if(ON_INFER)
   string(REPLACE "." ";" DEMO_NAME ${DEMO_NAME})
   list(GET DEMO_NAME 0 DEMO_NAME)
   add_executable(${DEMO_NAME} ${DEMO})
-  set(DEPS pd_infer_custom_op ${ft_lib_link} boost ${DEPS} cublas cudart)
+  set(DEPS decoding_infer_op ${ft_lib_link} boost ${DEPS} cublas cudart)
 
-  if(WITH_GPT)
+  if(WITH_GPT AND WITH_SP)
     set(DEPS ${DEPS} sentencepiece)
+    add_dependencies(decoding_infer_op extern_sentencepiece)
   endif()
 
   if(WIN32)
@@ -256,7 +263,7 @@ else(ON_INFER)
   endif()
 
   set(ft_lib_link
-    -ldecoder -ldecoding -ltopk -lcuda_int8_kernels -lcuda_kernels -lonline_softmax_beamsearch
+    -ldecoder -ldecoding -ltopk -lcuda_int8_kernels -lcuda_kernels -lonline_softmax_beamsearch -ltransformer_kernels -lattention_kernels -lencoder -lnccl_utils -lnvtx_utils
   )
 
   add_definitions(-DPADDLE_WITH_CUDA)
@@ -269,8 +276,4 @@ else(ON_INFER)
   add_library(decoding_op SHARED ${decoding_op_files})
   add_dependencies(decoding_op extern_${THIRD_PARTY_NAME} boost)
   target_link_libraries(decoding_op PRIVATE -lcublas -lcudart ${lib_link} ${ft_lib_link})
-
-  add_library(decoder_op SHARED ${decoder_op_files})
-  add_dependencies(decoder_op extern_${THIRD_PARTY_NAME} boost)
-  target_link_libraries(decoder_op PRIVATE -lcublas -lcudart -ldecoder ${lib_link})
 endif()

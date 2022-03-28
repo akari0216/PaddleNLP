@@ -39,7 +39,8 @@ python -u -m paddle.distributed.launch --gpus "0" \
     --batch_size 32 \
     --learning_rate 5E-5 \
     --epochs 10 \
-    --max_seq_length 512
+    --max_seq_length 512 \
+    --rdrop_coef 0 \
 ```
 参数含义说明
 - `task_name`: FewCLUE 中的数据集名字
@@ -47,6 +48,7 @@ python -u -m paddle.distributed.launch --gpus "0" \
 - `device`: 使用 cpu/gpu 进行训练
 - `save_dir`: 模型存储路径
 - `max_seq_length`: 文本的最大截断长度
+- `rdrop_coef`: R-Drop 策略 Loss 的权重系数，默认为 0， 若为 0 则未使用 R-Drop 策略
 
 模型每训练 1 个 epoch,  会在验证集上进行评估，并针对测试集进行预测存储到预测结果文件。
 
@@ -63,17 +65,17 @@ python -u -m paddle.distributed.launch --gpus "0" predict.py \
         --max_seq_length 512
 ```
 
-#### 基于静态图的预测部署
+#### 基于静态图的预测
 
-使用动态图训练结束之后，可以将动态图参数导出成静态图参数，从而获得最优的预测部署性能，执行如下命令完成动态图转换静态图的功能:
+使用动态图训练结束之后，可以将动态图参数导出成静态图参数，从而获得最优的预测性能，执行如下命令完成动态图转换静态图的功能:
 ```
 python export_model.py --params_path=./checkpoint/model_100/model_state.pdparams --output_path=./output
 
 ```
 
-导出静态图模型之后，可以用于部署，`deploy/python/predict.py` 脚本提供了 python 部署预测示例。运行方式：
+导出静态图模型之后，可以基于静态图做预测部署，`deploy/python/predict.py` 脚本提供了 python 静态图预测示例。以 tnews 数据集为例, 执行如下命令基于静态图预测：
 ```
-python deploy/python/predict.py --model_dir=./output
+python deploy/python/predict.py --model_dir=./output --task_name="tnews"
 
 ```
 

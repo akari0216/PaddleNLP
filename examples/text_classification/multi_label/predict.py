@@ -27,14 +27,15 @@ from model import MultiLabelClassifier
 
 # yapf: disable
 parser = argparse.ArgumentParser()
-parser.add_argument("--params_path", type=str, required=True, help="The path to model parameters to be loaded.")
-parser.add_argument("--max_seq_length", default=128, type=int, help="The maximum total input sequence length after tokenization. "
+parser.add_argument("--params_path", type=str, required=True, default='./checkpoint/model_800/model_state.pdparams', help="The path to model parameters to be loaded.")
+parser.add_argument("--max_seq_length", type=int, default=128, help="The maximum total input sequence length after tokenization. "
     "Sequences longer than this will be truncated, sequences shorter will be padded.")
-parser.add_argument("--batch_size", default=32, type=int, help="Batch size per GPU/CPU for training.")
+parser.add_argument("--batch_size", type=int, default=32, help="Batch size per GPU/CPU for training.")
 parser.add_argument('--device', choices=['cpu', 'gpu', 'xpu'], default="gpu", help="Select which device to train model, defaults to gpu.")
 parser.add_argument("--data_path", type=str, default="./data", help="The path of datasets to be loaded")
 args = parser.parse_args()
 # yapf: enable
+
 
 def predict(model, data_loader, batch_size=1):
     """
@@ -67,16 +68,24 @@ if __name__ == "__main__":
 
     # Load train dataset.
     file_name = 'test.csv'
-    test_ds = load_dataset(read_custom_data, filename=os.path.join(args.data_path, file_name), is_test=True, lazy=False)
+    test_ds = load_dataset(
+        read_custom_data,
+        filename=os.path.join(args.data_path, file_name),
+        is_test=True,
+        lazy=False)
 
     # The dataset labels
-    label_info = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+    label_info = [
+        'toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate'
+    ]
 
     # Load pretrained model
-    pretrained_model = ppnlp.transformers.BertModel.from_pretrained("bert-base-uncased")
+    pretrained_model = ppnlp.transformers.BertModel.from_pretrained(
+        "bert-base-uncased")
 
     # Load bert tokenizer
-    tokenizer = ppnlp.transformers.BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = ppnlp.transformers.BertTokenizer.from_pretrained(
+        'bert-base-uncased')
 
     model = MultiLabelClassifier(pretrained_model, num_labels=len(label_info))
 
@@ -102,7 +111,7 @@ if __name__ == "__main__":
         print("Loaded parameters from %s" % args.params_path)
 
     results = predict(model, test_data_loader, args.batch_size)
-    filename = os.path.join(args.data_path, dataset_name)
+    filename = os.path.join(args.data_path, file_name)
 
     # Write test result into csv file
     write_test_results(filename, results, label_info)

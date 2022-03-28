@@ -14,16 +14,17 @@
 # limitations under the License.
 
 import copy
-import io
-import json
 import os
-import six
 import unicodedata
 
-from .. import PretrainedTokenizer
+from .. import PretrainedTokenizer, AddedToken
 from ..tokenizer_utils import convert_to_unicode, whitespace_tokenize, _is_whitespace, _is_control, _is_punctuation
 
-__all__ = ['BasicTokenizer', 'BertTokenizer', 'WordpieceTokenizer']
+__all__ = [
+    'BasicTokenizer',
+    'BertTokenizer',
+    'WordpieceTokenizer',
+]
 
 
 class BasicTokenizer(object):
@@ -290,9 +291,9 @@ class BertTokenizer(PretrainedTokenizer):
         .. code-block::
 
             from paddlenlp.transformers import BertTokenizer
-            berttokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-            inputs = berttokenizer.tokenize('He was a puppeteer')
+            inputs = tokenizer('He was a puppeteer')
             print(inputs)
 
             '''
@@ -304,29 +305,29 @@ class BertTokenizer(PretrainedTokenizer):
     pretrained_resource_files_map = {
         "vocab_file": {
             "bert-base-uncased":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-uncased-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-uncased-vocab.txt",
             "bert-large-uncased":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-large-uncased-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-large-uncased-vocab.txt",
             "bert-base-cased":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-cased-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-cased-vocab.txt",
             "bert-large-cased":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-large-cased-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-large-cased-vocab.txt",
             "bert-base-multilingual-uncased":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-multilingual-uncased-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-multilingual-uncased-vocab.txt",
             "bert-base-multilingual-cased":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-multilingual-cased-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-multilingual-cased-vocab.txt",
             "bert-base-chinese":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-chinese-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-chinese-vocab.txt",
             "bert-wwm-chinese":
-            "http://paddlenlp.bj.bcebos.com/models/transformers/bert/bert-wwm-chinese-vocab.txt",
+            "http://bj.bcebos.com/paddlenlp/models/transformers/bert/bert-wwm-chinese-vocab.txt",
             "bert-wwm-ext-chinese":
-            "http://paddlenlp.bj.bcebos.com/models/transformers/bert/bert-wwm-ext-chinese-vocab.txt",
+            "http://bj.bcebos.com/paddlenlp/models/transformers/bert/bert-wwm-ext-chinese-vocab.txt",
             "macbert-large-chinese":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-chinese-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-chinese-vocab.txt",
             "macbert-base-chinese":
-            "https://paddle-hapi.bj.bcebos.com/models/bert/bert-base-chinese-vocab.txt",
+            "https://bj.bcebos.com/paddle-hapi/models/bert/bert-base-chinese-vocab.txt",
             "simbert-base-chinese":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/simbert/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/simbert/vocab.txt",
         }
     }
     pretrained_init_configuration = {
@@ -376,7 +377,8 @@ class BertTokenizer(PretrainedTokenizer):
                  sep_token="[SEP]",
                  pad_token="[PAD]",
                  cls_token="[CLS]",
-                 mask_token="[MASK]"):
+                 mask_token="[MASK]",
+                 **kwargs):
 
         if not os.path.isfile(vocab_file):
             raise ValueError(
@@ -384,6 +386,7 @@ class BertTokenizer(PretrainedTokenizer):
                 "vocabulary from a pretrained model please use "
                 "`tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL_NAME)`"
                 .format(vocab_file))
+        self.do_lower_case = do_lower_case
         self.vocab = self.load_vocabulary(vocab_file, unk_token=unk_token)
         self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
         self.wordpiece_tokenizer = WordpieceTokenizer(
@@ -415,32 +418,6 @@ class BertTokenizer(PretrainedTokenizer):
             for sub_token in self.wordpiece_tokenizer.tokenize(token):
                 split_tokens.append(sub_token)
         return split_tokens
-
-    def tokenize(self, text):
-        """
-        Converts a string to a list of tokens.
-
-        Args:
-            text (str): The text to be tokenized.
-        
-        Returns:
-            List(str): A list of string representing converted tokens.
-
-        Examples:
-            .. code-block::
-
-                from paddlenlp.transformers import BertTokenizer
-
-                berttokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-                tokens = berttokenizer.tokenize('He was a puppeteer')
-                
-                '''
-                ['he', 'was', 'a', 'puppet', '##eer']
-                '''
-
-        """
-
-        return self._tokenize(text)
 
     def convert_tokens_to_string(self, tokens):
         """
@@ -554,7 +531,7 @@ class BertTokenizer(PretrainedTokenizer):
             0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1
             | first sequence    | second sequence |
 
-        If :obj:`token_ids_1` is :obj:`None`, this method only returns the first portion of the mask (0s).
+        If `token_ids_1` is `None`, this method only returns the first portion of the mask (0s).
 
         Args:
             token_ids_0 (List[int]):

@@ -4,7 +4,7 @@
 
 词法分析任务的输入是一个字符串（我们后面使用『句子』来指代它），而输出是句子中的词边界和词性、实体类别。序列标注是词法分析的经典建模方式，我们使用基于 GRU 的网络结构学习特征，将学习到的特征接入 CRF 解码层完成序列标注。模型结构如下所示：<br />
 
-![GRU-CRF-MODEL](https://paddlenlp.bj.bcebos.com/imgs/gru-crf-model.png)
+![GRU-CRF-MODEL](https://bj.bcebos.com/paddlenlp/imgs/gru-crf-model.png)
 
 1. 输入采用 one-hot 方式表示，每个字以一个 id 表示
 2. one-hot 序列通过字表，转换为实向量表示的字向量序列；
@@ -131,6 +131,50 @@ python predict.py --data_dir ./lexical_analysis_dataset_tiny \
 (什么, r)(是, v)(司法, n)(鉴定人, vn)
 ```
 
+### Taskflow一键预测
+可以使用PaddleNLP提供的Taskflow工具来对输入的文本进行一键分词，具体使用方法如下:
+
+```python
+from paddlenlp import Taskflow
+
+lac = Taskflow("lexical_analysis")
+lac("LAC是个优秀的分词工具")
+'''
+[{'text': 'LAC是个优秀的分词工具', 'segs': ['LAC', '是', '个', '优秀', '的', '分词', '工具'], 'tags': ['nz', 'v', 'q', 'a', 'u', 'n', 'n']}]
+'''
+
+lac(["LAC是个优秀的分词工具", "三亚是一个美丽的城市"])
+'''
+[{'text': 'LAC是个优秀的分词工具', 'segs': ['LAC', '是', '个', '优秀', '的', '分词', '工具'], 'tags': ['nz', 'v', 'q', 'a', 'u', 'n', 'n']},
+ {'text': '三亚是一个美丽的城市', 'segs': ['三亚', '是', '一个', '美丽', '的', '城市'], 'tags': ['LOC', 'v', 'm', 'a', 'u', 'n']}
+]
+'''
+```
+
+任务的默认路径为`$HOME/.paddlenlp/taskflow/lexical_analysis/lac/`，默认路径下包含了执行该任务需要的所有文件。
+
+如果希望得到定制化的分词及标注结果，用户也可以通过Taskflow来加载自定义的词法分析模型并进行预测。
+
+通过`task_path`指定用户自定义路径，自定义路径下的文件需要和默认路径的文件一致。
+
+自定义路径包含如下文件（用户自己的模型权重、标签字典）：
+```text
+custom_task_path/
+├── model.pdparams
+├── word.dic
+├── tag.dic
+└── q2b.dic
+```
+
+使用Taskflow加载自定义模型进行一键预测：
+
+```python
+from paddlenlp import Taskflow
+
+my_lac = Taskflow("lexical_analysis", model_path="./custom_task_path/")
+```
+
+更多使用方法请参考[Taskflow文档](../../docs/model_zoo/taskflow.md)。
 
 ## 预训练模型
 

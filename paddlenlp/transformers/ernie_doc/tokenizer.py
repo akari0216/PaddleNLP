@@ -25,50 +25,51 @@ __all__ = ['ErnieDocTokenizer', 'ErnieDocBPETokenizer']
 
 class ErnieDocTokenizer(ErnieTokenizer):
     r"""
-    Constructs an ERNIE-Doc tokenizer. It uses a basic tokenizer to do punctuation
-    splitting, lower casing and so on, and follows a WordPiece tokenizer to
-    tokenize as subwords.
+    Constructs an ERNIE-Doc tokenizer.
+    It uses a basic tokenizer to do punctuation splitting, lower casing and so on,
+    and follows a WordPiece tokenizer to tokenize as subwords.
+
+    This tokenizer inherits from :class:`~paddlenlp.transformers.ernie.tokenizer.ErnieTokenizer`.
+    For more information regarding those methods, please refer to this superclass.
 
     Args:
-        vocab_file (str): 
-            file path of the vocabulary.
-        do_lower_case (str, optional): 
-            Whether the text strips accents and convert to lower case. 
-            Defaults to `True`.
-        unk_token (str, optional): 
-            The special token for unknown words. 
+        vocab_file (str):
+            The vocabulary file path (ends with '.txt') required to instantiate
+            a `WordpieceTokenizer`.
+        do_lower_case (str, optional):
+            Whether or not to lowercase the input when tokenizing.
+            Defaults to`True`.
+        unk_token (str, optional):
+            A special token representing the *unknown (out-of-vocabulary)* token.
+            An unknown token is set to be `unk_token` inorder to be converted to an ID.
             Defaults to "[UNK]".
-        sep_token (str, optional): 
-            The special token for separator token. 
+        sep_token (str, optional):
+            A special token separating two different sentences in the same input.
             Defaults to "[SEP]".
-        pad_token (str, optional): 
-            The special token for padding. 
+        pad_token (str, optional):
+            A special token used to make arrays of tokens the same size for batching purposes.
             Defaults to "[PAD]".
-        cls_token (str, optional): 
-            The special token for cls. 
-            Defaults to "[CLS]".
-        mask_token (str, optional): 
-            The special token for mask.
+        cls_token (str, optional):
+            A special token used for sequence classification. It is the last token
+            of the sequence when built with special tokens. Defaults to "[CLS]".
+        mask_token (str, optional):
+            A special token representing a masked token. This is the token used
+            in the masked language modeling task which the model tries to predict the original unmasked ones.
             Defaults to "[MASK]".
     
     Examples:
-        .. code-block:: python
+        .. code-block::
+
             from paddlenlp.transformers import ErnieDocTokenizer
             tokenizer = ErnieDocTokenizer.from_pretrained('ernie-doc-base-zh')
-            encoded_inputs = tokenizer('这是一个测试样例')
-            # encoded_inputs: 
-            # { 
-            #   'input_ids': [1, 47, 10, 7, 27, 558, 525, 314, 656, 2], 
-            #   'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            # }
-
+            encoded_inputs = tokenizer('He was a puppeteer')
 
     """
     resource_files_names = {"vocab_file": "vocab.txt"}  # for save_pretrained
     pretrained_resource_files_map = {
         "vocab_file": {
             "ernie-doc-base-zh":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-doc-base-zh/vocab.txt",
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-doc-base-zh/vocab.txt",
         }
     }
     pretrained_init_configuration = {
@@ -84,7 +85,8 @@ class ErnieDocTokenizer(ErnieTokenizer):
                  sep_token="[SEP]",
                  pad_token="[PAD]",
                  cls_token="[CLS]",
-                 mask_token="[MASK]"):
+                 mask_token="[MASK]",
+                 **kwargs):
         super(ErnieDocTokenizer, self).__init__(
             vocab_file,
             do_lower_case=do_lower_case,
@@ -100,40 +102,40 @@ class ErnieDocBPETokenizer(BPETokenizer):
     Constructs an ERNIE-Doc BPE tokenizer. It uses a bpe tokenizer to do punctuation
     splitting, lower casing and so on, then tokenize words as subwords.
 
+    This tokenizer inherits from :class:`~paddlenlp.transformers.tokenizer_utils.BPETokenizer`.
+    For more information regarding those methods, please refer to this superclass.
+
     Args:
         vocab_file (str): 
-            file path of the vocabulary.
+            File path of the vocabulary.
         encoder_json_path (str, optional):
-            file path of the id to vocab.
+            File path of the id to vocab.
         vocab_bpe_path (str, optional):
-            file path of word merge text.
-        unk_token (str, optional): 
-            The special token for unknown words. 
+            File path of word merge text.
+        unk_token (str, optional):
+            A special token representing the *unknown (out-of-vocabulary)* token.
+            An unknown token is set to be `unk_token` inorder to be converted to an ID.
             Defaults to "[UNK]".
-        sep_token (str, optional): 
-            The special token for separator token. 
+        sep_token (str, optional):
+            A special token separating two different sentences in the same input.
             Defaults to "[SEP]".
-        pad_token (str, optional): 
-            The special token for padding. 
+        pad_token (str, optional):
+            A special token used to make arrays of tokens the same size for batching purposes.
             Defaults to "[PAD]".
-        cls_token (str, optional): 
-            The special token for cls. 
-            Defaults to "[CLS]".
-        mask_token (str, optional): 
-            The special token for mask.
+        cls_token (str, optional):
+            A special token used for sequence classification. It is the last token
+            of the sequence when built with special tokens. Defaults to "[CLS]".
+        mask_token (str, optional):
+            A special token representing a masked token. This is the token used
+            in the masked language modeling task which the model tries to predict the original unmasked ones.
             Defaults to "[MASK]".
     
     Examples:
-        .. code-block:: python
+        .. code-block::
+
             from paddlenlp.transformers import ErnieDocBPETokenizer
             tokenizer = ErnieDocBPETokenizer.from_pretrained('ernie-doc-base-en')
-            encoded_inputs = tokenizer('This is an example')
-            # encoded_inputs: 
-            # { 
-            #   'input_ids': [713, 16, 41, 1246], 
-            #   'token_type_ids': [0, 0, 0, 0]
-            # }
-
+            encoded_inputs = tokenizer('He was a puppeteer')
 
     """
     resource_files_names = {
@@ -144,15 +146,15 @@ class ErnieDocBPETokenizer(BPETokenizer):
     pretrained_resource_files_map = {
         "vocab_file": {
             "ernie-doc-base-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-doc-base-en/vocab.txt"
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-doc-base-en/vocab.txt"
         },
         "encoder_json_path": {
             "ernie-doc-base-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-doc-base-en/encoder.json"
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-doc-base-en/encoder.json"
         },
         "vocab_bpe_path": {
             "ernie-doc-base-en":
-            "https://paddlenlp.bj.bcebos.com/models/transformers/ernie-doc-base-en/vocab.bpe"
+            "https://bj.bcebos.com/paddlenlp/models/transformers/ernie-doc-base-en/vocab.bpe"
         }
     }
     pretrained_init_configuration = {
@@ -169,7 +171,8 @@ class ErnieDocBPETokenizer(BPETokenizer):
                  sep_token="[SEP]",
                  pad_token="[PAD]",
                  cls_token="[CLS]",
-                 mask_token="[MASK]"):
+                 mask_token="[MASK]",
+                 **kwargs):
         super(ErnieDocBPETokenizer, self).__init__(
             vocab_file,
             encoder_json_path=encoder_json_path,
@@ -179,3 +182,13 @@ class ErnieDocBPETokenizer(BPETokenizer):
             pad_token=pad_token,
             cls_token=cls_token,
             mask_token=mask_token)
+
+    @property
+    def vocab_size(self):
+        """
+        Return the size of vocabulary.
+
+        Returns:
+            int: The size of vocabulary.
+        """
+        return len(self.vocab)

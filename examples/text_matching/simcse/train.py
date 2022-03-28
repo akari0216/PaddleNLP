@@ -31,6 +31,7 @@ from paddlenlp.transformers import LinearDecayWithWarmup
 
 from model import SimCSE
 from data import read_simcse_text, read_text_pair, convert_example, create_dataloader
+from data import word_repetition
 
 # yapf: disable
 parser = argparse.ArgumentParser()
@@ -47,12 +48,14 @@ parser.add_argument("--init_from_ckpt", type=str, default=None, help="The path o
 parser.add_argument("--seed", type=int, default=1000, help="Random seed for initialization.")
 parser.add_argument('--device', choices=['cpu', 'gpu'], default="gpu", help="Select which device to train model, defaults to gpu.")
 parser.add_argument('--save_steps', type=int, default=10000, help="Step interval for saving checkpoint.")
+parser.add_argument("--max_steps", default=-1, type=int, help="If > 0: set total number of training steps to perform. Override ecpochs.")
 parser.add_argument('--eval_steps', type=int, default=10000, help="Step interval for evaluation.")
 parser.add_argument("--train_set_file", type=str, required=True, help="The full path of train_set_file.")
 parser.add_argument("--test_set_file", type=str, required=True, help="The full path of test_set_file.")
 parser.add_argument("--margin", default=0.0, type=float, help="Margin beteween pos_sample and neg_samples.")
 parser.add_argument("--scale", default=20, type=int, help="Scale for pair-wise margin_rank_loss.")
 parser.add_argument("--dropout", default=0.1, type=float, help="Dropout for pretrained model encoder.")
+parser.add_argument("--dup_rate", default=0.32, type=float, help="duplicate rate for word reptition.")
 parser.add_argument("--infer_with_fc_pooler", action='store_true', help="Whether use fc layer after cls embedding or not for when infer.")
 
 args = parser.parse_args()
@@ -160,7 +163,8 @@ def do_train():
 
     model = paddle.DataParallel(model)
 
-    num_training_steps = len(train_data_loader) * args.epochs
+    num_training_steps = args.max_steps if args.max_steps > 0 else len(
+        train_data_loader) * args.epochs
 
     lr_scheduler = LinearDecayWithWarmup(args.learning_rate, num_training_steps,
                                          args.warmup_proportion)
@@ -182,6 +186,9 @@ def do_train():
     for epoch in range(1, args.epochs + 1):
         for step, batch in enumerate(train_data_loader, start=1):
             query_input_ids, query_token_type_ids, title_input_ids, title_token_type_ids = batch
+            if(args.dup_rate > 0):
+                query_input_ids,query_token_type_ids=word_repetition(query_input_ids,query_token_type_ids,args.dup_rate)
+                title_input_ids,title_token_type_ids=word_repetition(title_input_ids,title_token_type_ids,args.dup_rate)
 
             loss = model(
                 query_input_ids=query_input_ids,
@@ -214,6 +221,8 @@ def do_train():
                 paddle.save(model.state_dict(), save_param_path)
                 tokenizer.save_pretrained(save_dir)
 
+            if args.max_steps > 0 and global_step >= args.max_steps:
+                return
 
 if __name__ == "__main__":
     do_train()
